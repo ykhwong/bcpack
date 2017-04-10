@@ -127,8 +127,8 @@ Above sections have the following structure:
 For example, below line
     EncodePointer,4,win2k,kernel32=1
 will support EncodePointer function with a single argument +
-										 win2k compatibility +
-										 kernel32
+                                         win2k compatibility +
+                                         kernel32
 
 
 

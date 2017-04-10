@@ -1,0 +1,87 @@
+
+[common]
+MSBUILD_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin
+MSBUILD_OPT=/t:Rebuild /p:Configuration=Release;Platform=win32
+RESULT_PATH=.\workspace
+WIN2K_COMP=1
+WIN98_COMP=1
+WIN95_COMP=1
+DEBUG_COMP=1
+ADDITIONAL_COMP=1
+FORCED_FUNC=0
+FORCED_DUMMY=0
+
+[win2k_func]
+EncodePointer,4,win2k,kernel32=1
+DecodePointer,4,win2k,kernel32=1
+InitializeSListHead,4,win2k,kernel32=1
+GetModuleHandleExW,12,win2k,kernel32=1
+InterlockedFlushSList,4,win2k,kernel32=1
+InterlockedPushEntrySList,8,win2k,kernel32=1
+
+[win98_func]
+SetFilePointerEx,20,win98,kernel32=1
+
+[win95_func]
+IsDebuggerPresent,0,win95,kernel32=1
+FindFirstFileExA,24,win95,kernel32=1
+FindFirstFileExW,24,win95,kernel32=1
+InitializeCriticalSectionAndSpinCount,8,win95,kernel32=1
+IsProcessorFeaturePresent,4,win95,kernel32=1
+GetFileAttributesExW,12,win95,kernel32=1
+
+[debug_func]
+HeapQueryInformation,20,win2k,kernel32=1
+
+[additional_func]
+# DEPENDENCY EXTENDER-SPECIFIC
+CharLowerW,4,win95,user32=1
+CharUpperW,4,win95,user32=1
+CoInitializeEx,8,win98,ole32=1
+WideCharToMultiByte,32,win98,kernel32=1
+CompareStringW,24,win98,kernel32=1
+GetFileAttributesExA,12,win2k,kernel32=1
+GetFileSizeEx,8,win2k,kernel32=1
+GetLocaleInfoW,16,win98,kernel32=1
+GetMenuBarInfo,16,win98,user32=1
+#GetModuleHandleW,
+#GetStringTypeW,
+#InterlockedCompareExchange,
+#LCMapStringW@24,
+#MultiByteToWideChar,
+PathFindExtensionA,4,win98,shlwapi=1
+PathFindFileNameA,4,win98,shlwapi=1
+PathIsUNCA,4,win98,shlwapi=1
+PathStripToRootA,4,win98,shlwapi=1
+lstrcmpW,8,win98,kernel32=1
+lstrlenW,4,win98,kernel32=1
+
+# LIBTBB DEPENDENCY FOR OLD XP
+GetModuleHandleExA,12,win2k,kernel32=1
+GetNativeSystemInfo,4,win2k,kernel32=1
+QueryDepthSList,4,win2k,kernel32=1
+InterlockedPopEntrySList,4,win2k,kernel32=1
+
+# WIN2K-XP CODE (IMM32)
+ImmDisableTextFrameService,4,win2k,imm32=1
+AttachConsole,4,win2k,kernel32=1
+ImmEnumInputContext,12,win2k,imm32=1
+ImmGetHotKey,16,win2k,imm32=1
+
+# OTHERS
+RtlFreeUnicodeString,4,win95,ntdll=1
+RtlInitString,8,win95,ntdll=1
+RtlAnsiStringToUnicodeString,12,win95,ntdll=1
+NtQuerySystemInformation,16,win95,ntdll=1
+RtlInitAnsiString,8,win98,ntdll=1
+PathIsRootA,4,win98,shlwapi=1
+PathRemoveFileSpecA,4,win95,shlwapi=1
+
+# Win9x-specific (Experimental)
+EnterCriticalSection,4,win98,kernel32=1
+LeaveCriticalSection,4,win98,kernel32=1
+GetCurrentProcess,0,win98,kernel32=1
+SetUnhandledExceptionFilter,4,win98,kernel32=1
+UnhandledExceptionFilter,4,win98,kernel32=1
+InitializeCriticalSectionEx,12,win98,kernel32=1
+LoadLibraryExW,12,win98,kernel32=1

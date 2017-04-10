@@ -1,0 +1,63 @@
+#pragma once
+#include "stdafx.h"
+#include <windows.h>
+#include "winternl_replacement.h"
+#include <intrin.h>
+#include "Objbase.h"
+#ifndef _UNICODE 
+#include <io.h>
+#include <stdio.h>
+#endif
+
+#include "config.h"
+#include "enum.h"
+
+#if FORCED_FUNC
+const BOOL IsXpOrHigher_2K = false;
+const BOOL Is2kOrHigher_98MENT = false;
+const BOOL Is98OrHigher_95 = false;
+#else
+static OSVERSIONINFOEX osvi;
+const BOOL IsXpOrHigher_2K = ((DWORD)(LOBYTE(LOWORD(GetVersion()))) >= 5 && (DWORD)(HIBYTE(LOWORD(GetVersion()))) >= 1);
+const BOOL Is2kOrHigher_98MENT = ((DWORD)(LOBYTE(LOWORD(GetVersion()))) >= 5 && (DWORD)(HIBYTE(LOWORD(GetVersion()))) >= 0);
+const BOOL Is98OrHigher_95 = (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS && osvi.dwMajorVersion == 4 && osvi.dwMinorVersion >= 1);
+#endif
+
+#define MAKE_FUNC_READY(name, is_os, lib, type, ...) \
+typedef type(WINAPI *p##name)(__VA_ARGS__); \
+extern "C" type WINAPI _##name(__VA_ARGS__) { \
+	static p##name name##_p = NULL; \
+	if (is_os) { \
+		if (!name##_p) { \
+			HMODULE mod = GetModuleHandle(_T(##lib)); \
+			if (mod) \
+				name##_p = (p##name)GetProcAddress(mod, ""#name); \
+		}
+#if FORCED_DUMMY
+#define MAKE_FUNC_BEGIN(name, ...) \
+		return name##_p(__VA_ARGS__); \
+	} else { \
+		if (0) {
+
+#define MAKE_FUNC_END \
+		} \
+	} \
+}
+#else
+#define MAKE_FUNC_BEGIN(name, ...) \
+		return name##_p(__VA_ARGS__); \
+	} else {
+#define MAKE_FUNC_END \
+	} \
+}
+#endif
+
+#define MAKE_FUNC_DUMMY(name, ret, ...) \
+		return name##_p(__VA_ARGS__); \
+	} else { \
+		return ret; \
+	} \
+}
+
+#define EXTERN_FUNC(name, is_os, lib, type, ...) \
+extern "C" type WINAPI _##name(__VA_ARGS__);

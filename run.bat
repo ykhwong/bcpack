@@ -54,7 +54,7 @@ if not "%PERL_ENABLED%" == "1" (
 )
 
 REM Set codepage to 437
-if "%CHCP_ENABLED%" == "1" chcp 437 >nul
+REM if "%CHCP_ENABLED%" == "1" chcp 437 >nul
 
 REM Check main tool
 if not exist "%MAIN_TOOL%" (

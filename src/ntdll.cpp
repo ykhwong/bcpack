@@ -16,6 +16,7 @@
 
 */
 #include "common.h"
+#include "util.h"
 
 #if _WIN64
 #else

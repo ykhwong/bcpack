@@ -17,6 +17,10 @@
 */
 #pragma once
 
+#ifndef NT_SUCCESS
+#define NT_SUCCESS(StatCode)  ((NTSTATUS)(StatCode) >= 0)
+#endif
+
 const unsigned int collation_table[12800] = {
 	/* index */
 	0x00000200, 0x00000300, 0x00000400, 0x00000500, 0x00000600, 0x00000700, 0x00000800, 0x00000900,

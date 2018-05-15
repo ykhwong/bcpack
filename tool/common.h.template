@@ -1,7 +1,7 @@
 #pragma once
 #include "stdafx.h"
 #include <windows.h>
-#include "winternl_replacement.h"
+#include "custom_winternl.h"
 #include <intrin.h>
 #include "Objbase.h"
 #ifndef _UNICODE 

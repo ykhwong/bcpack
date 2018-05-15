@@ -1,6 +1,6 @@
 
 BCPack v0.1 for Visual Studio
-Copyright (c) 2017 Taewoong Yoo
+Copyright (c) 2018 Taewoong Yoo
 
 BCPack is free software; you can redistribute it and/or modify it under
 the terms of the GNU Lesser General Public License as published by the

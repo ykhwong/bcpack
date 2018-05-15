@@ -598,6 +598,25 @@ sub compile {
 		$result .= $ls . "\n";
 	}
 	$result =~ s/\Q"..\workspace\\E/"..\\$workspace_dir/mg;
+	if ($os_name eq 'MSWin32') {
+		my $pf_path = $ENV{'ProgramFiles(x86)'};
+		my $final_pf;
+		if ($pf_path =~ /\S/) {
+			$pf_path = $pf_path . "/Windows Kits/10/bin";
+			if ( -d $pf_path ) {
+				opendir( my $DIR, $pf_path );
+				my @pf_files = sort { $a <=> $b } readdir($DIR);
+				while ( my $entry = shift @pf_files ) {
+					next unless -d $pf_path . '/' . $entry;
+					next if $entry eq '.' or $entry eq '..';
+					next if $entry !~ /^\d(.+)\d$/;
+					$final_pf = $entry;
+				}
+				closedir $DIR;
+				$result =~ s/<WindowsTargetPlatformVersion>(.+)<\/WindowsTargetPlatformVersion>/<WindowsTargetPlatformVersion>$final_pf<\/WindowsTargetPlatformVersion>/;
+			}
+		}
+	}
 	file::save_file("$workspace_dir/BCPACK.vcxproj", $result);
 	print "Workspace created: $workspace_dir\n";
 	if ($do_not_compile eq 1) {

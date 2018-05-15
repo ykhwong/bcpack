@@ -88,14 +88,13 @@ common section contains useful options for the compatibility details.
  [win95_func]      : Necessary functions for Windows 95
  [debug_func]      : Necessary functions when compiling with debug mode
  [additional_func] : Additional functions
-
-Above sections have the following structure:
-    Function             : Function name
-	No._of_arguments * 4 : How many arguments will be used for the function
-	Opearing system      : win95, win98, win2k, and default
-	DLL filename         : BCPACK filename corresponding to the system BCPACK
-	=(1/0)               : 1=Enabled, 0=Disabled
 ```
+Above sections have the following structure:
+* Function             : Function name
+* No._of_arguments * 4 : How many arguments will be used for the function
+* Opearing system      : win95, win98, win2k, and default
+* DLL filename         : BCPACK filename corresponding to the system BCPACK
+* =(1/0)               : 1=Enabled, 0=Disabled
 
 For example, below line
 ```

@@ -59,10 +59,11 @@ editbin.exe "$(TargetPath)" /SUBSYSTEM:CONSOLE,4.0 /OSVERSION:4.0
 7. Compile your own project.
 8. Copy the compiled executable to older version of Windows and run it.
 
-## CONFIG FILE
+## Config file
 config.cfg is the configuration file that you can freely modify before creating the library file.
 
 **COMMON SECTION**
+
 common section contains useful options for the compatibility details.
 ```
  [common]
@@ -82,6 +83,7 @@ common section contains useful options for the compatibility details.
 ```
 
 ***OTHER SECTIONS***
+
 ```
  [win2k_func]      : Necessary functions for Windows 2000
  [win98_func]      : Necessary functions for Windows 98
@@ -89,6 +91,7 @@ common section contains useful options for the compatibility details.
  [debug_func]      : Necessary functions when compiling with debug mode
  [additional_func] : Additional functions
 ```
+
 Above sections have the following structure:
 * Function             : Function name
 * No._of_arguments * 4 : How many arguments will be used for the function
@@ -96,11 +99,7 @@ Above sections have the following structure:
 * DLL filename         : BCPACK filename corresponding to the system BCPACK
 * =(1/0)               : 1=Enabled, 0=Disabled
 
-For example, below line
-```
-EncodePointer,4,win2k,kernel32=1
-```
-will support EncodePointer function with a single argument with win2k compatibility and kernel32.
+For example, <code>EncodePointer,4,win2k,kernel32=1</code> provides a support for the EncodePointer function with a single argument with win2k compatibility in the kernel32.
 
 
 ## Changelog

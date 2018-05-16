@@ -2,7 +2,7 @@
 [common]
 MSBUILD_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin
 MSBUILD_OPT=/t:Rebuild /p:Configuration=Release;Platform=win32
-RESULT_PATH=.\workspace
+WORKSPACE_PATH=.\workspace
 WIN2K_COMP=1
 WIN98_COMP=1
 WIN95_COMP=1

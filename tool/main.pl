@@ -27,6 +27,7 @@ my $workspace_dir = $default_workspace_dir;
 my $src_dir = "./src";
 my $os_name = $^O;
 my $do_not_compile=0;
+my $show_config=0;
 my $msbuild_filename=0;
 
 my ($msbuild_path, $msbuild_opt, $workspace_path, $win2k_comp, $win98_comp, $win95_comp, $debug_comp, $additional_comp, $forced_func, $forced_dummy) = (0) x 10;
@@ -99,6 +100,8 @@ sub show_status {
 	"ADDITIONAL_COMP=$additional_comp\n" .
 	"FORCED_FUNC=$forced_func\n" .
 	"FORCED_DUMMY=$forced_dummy\n";
+
+	if ($show_config eq 0) { return; }
 
 	foreach my $ls (@win2k_func) {
 		$cnt++;
@@ -635,11 +638,14 @@ sub init {
 	if (@ARGV) {
 		foreach my $arg (@ARGV) {
 			if ($arg =~ /^--(help|h)/) {
-				print "USAGE: $0 [--do-not-compile]\n";
+				print "USAGE: $0 [--do-not-compile] [--show-config]\n";
 				exit 0;
 			}
 			if ($arg =~ /^--(do-not-compile)/) {
 				$do_not_compile=1;
+			}
+			if ($arg =~ /^--(show-config)/) {
+				$show_config=1;
 			}
 		}
 	}
@@ -654,7 +660,7 @@ sub main {
 	init();
 	register_config();
 	check_dir();
-	#show_status();
+	show_status();
 	create_config_for_msvc();
 	check_msbuild_status();
 	create_asm_for_msvc();

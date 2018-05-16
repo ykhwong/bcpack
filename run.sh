@@ -33,7 +33,7 @@ fi
 
 # Check perl availability
 if [ $PERL_ENABLED -eq 0 ]; then
-	echo "Perl is not available."
+	echo "Perl is not available. Please install perl and run this program again."
 	read tmp
 	exit 1
 fi

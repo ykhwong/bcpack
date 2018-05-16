@@ -48,7 +48,7 @@ for %%A in ("%path:;=";"%") do (
 :start
 REM Check perl availability
 if not "%PERL_ENABLED%" == "1" (
-	echo Perl is not available. && pause >nul
+	echo Perl is not available. Please install perl and run this program again. && pause >nul
 	if "%CMD_ENABLED%" == "1" cmd /c "exit /b 1"
 	goto done
 )

@@ -38,7 +38,7 @@ $ git clone https://github.com/ykhwong/bcpack.git
 ```
 run.bat
 ```
-Check whether the BCPack.lib is compiled successfully in the current working path.
+Check whether the BCPack.lib is compiled successfully in the current working path. Please add <code>--show-config</code> to show the configuration details at startup.
 3. On Unix-like operating system, you cannot compile the library. To create workspace directory only, please type:
 ```
 sh run.sh --do-not-compile

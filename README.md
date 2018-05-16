@@ -52,14 +52,15 @@ sh run.sh --do-not-compile
 2. Open your own project file with Visual Studio 2017.
 3. In Solution Explorer, select the project. On the Project menu, click Properties.
 4. Click C/C++ and Select Code Generation -> Runtime Library. Select Multi-threaded (/MT).
-5. Add the BCPACK.lib to the project (Linker->Input->Additional dependency) via Property page.
-6. Select the Build Events tab. In the Post-build event command line box, type the following:
+5. Add the BCPACK.lib to the project (Linker->Input->Additional dependency) via Property page. (e.g, BCPACK.lib;kernel32.lib;user32.lib;...)
+6. Go to the Linker->General->Force File Output and enable /FORCE:MULTIPLE.
+7. Select the Build Events tab. In the Post-build event command line box, type the following:
 ```
 copy "$(TargetPath)" "$(TargetPath).bak" >nul
 editbin.exe "$(TargetPath)" /SUBSYSTEM:CONSOLE,4.0 /OSVERSION:4.0
 ```
-7. Compile your own project.
-8. Copy the compiled executable to older version of Windows and run it.
+8. Compile your own project.
+9. Copy the compiled executable to older version of Windows and run it.
 
 ## Config file
 config.cfg is the configuration file that you can freely modify before creating the library file.

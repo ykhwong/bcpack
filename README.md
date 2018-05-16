@@ -34,11 +34,13 @@ $ git clone https://github.com/ykhwong/bcpack.git
 
 ## Building BCPack library with a workspace
 1. Open the config.cfg and check the information. (Please refer to the CONFIG FILE section, especially)
+
 2. On Windows, please run *run.bat* to create workspace and BCPACK.lib.
 ```
 run.bat
 ```
 Check whether the BCPack.lib is compiled successfully in the current working path. Please add <code>--show-config</code> to show the configuration details at startup.
+
 3. On Unix-like operating system, you cannot compile the library. To create workspace directory only, please type:
 ```
 sh run.sh --do-not-compile

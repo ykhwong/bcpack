@@ -20,6 +20,7 @@
 use strict;
 use File::Basename;
 use File::Copy;
+use File::Path qw/make_path/;
 
 my $default_cfg = "config.cfg";
 my $default_workspace_dir = "./workspace";
@@ -30,7 +31,7 @@ my $do_not_compile=0;
 my $show_config=0;
 my $msbuild_filename=0;
 
-my ($msbuild_path, $msbuild_opt, $workspace_path, $win2k_comp, $win98_comp, $win95_comp, $debug_comp, $additional_comp, $forced_func, $forced_dummy) = (0) x 10;
+my ($msbuild_path, $msbuild_opt, $win2k_comp, $win98_comp, $win95_comp, $debug_comp, $additional_comp, $forced_func, $forced_dummy) = (0) x 10;
 
 my @def = ("util.h", "custom_winternl.h", "main.cpp", "targetver.h", "stdafx.cpp", "stdafx.h");
 my (@win2k_func, @win98_func, @win95_func, @debug_func, @additional_func);
@@ -82,17 +83,30 @@ sub conv_path {
 	return $var;
 }
 
-
 sub uniq_helper {
 	my %seen;
 	grep !$seen{$_}++, @_;
+}
+
+sub parse_env {
+	# Parses the environment variable
+	my $var = shift;
+	$var = `echo $var`;
+	$var =~ s/(\r|\n)//;
+	return $var;
+}
+
+sub run_cmd {
+	my $cmd = shift;
+	$cmd = parse_env($cmd);
+	return `$cmd`;
 }
 
 sub show_status {
 	my $cnt=0;
 	my $status = "MSBUILD_PATH=$msbuild_path\n" .
 	"MSBUILD_OPT=$msbuild_opt\n" .
-	"WORKSPACE_PATH=$workspace_path\n" .
+	"WORKSPACE_PATH=$workspace_dir\n" .
 	"WIN2K_COMP=$win2k_comp\n" .
 	"WIN98_COMP=$win98_comp\n" .
 	"WIN95_COMP=$win95_comp\n" .
@@ -430,13 +444,13 @@ sub create_common_header_for_msvc {
 }
 
 sub check_dir {
-	my @dirs = ($src_dir, $workspace_dir);
 	if ( ! -d $src_dir ) {
 		print "ERROR: Directory not found: $src_dir\n";
 		exit 1;
 	}
+	$workspace_dir = parse_env($workspace_dir);
 	if ( ! -d $workspace_dir ) {
-		mkdir($workspace_dir);
+		::make_path($workspace_dir);
 		if ( ! -d $workspace_dir ) {
 			print "ERROR: Directory not found: $workspace_dir\n";
 			exit 1;
@@ -461,6 +475,7 @@ sub check_comma_struc {
 
 sub check_msbuild_status {
 	my $retcode;
+	my $run_cmd;
 	if ($do_not_compile eq 1) {
 		return;
 	}
@@ -472,11 +487,7 @@ sub check_msbuild_status {
 		print STDERR "MSBUILD_OPT is not set\n";
 		exit 1;
 	}
-	if ( ! -f "$msbuild_path/$msbuild_filename" ) {
-		print STDERR "ERROR - msbuild not available: $msbuild_path/$msbuild_filename\n";
-		exit 1;
-	}
-	`"$msbuild_path/$msbuild_filename" /?`;
+	run_cmd('"' . "$msbuild_path/$msbuild_filename" . '" /?');
 	$retcode = $?;
 	if ($retcode != 0) {
 		print STDERR "ERROR($retcode) - msbuild not available: $msbuild_path/$msbuild_filename\n";
@@ -514,7 +525,7 @@ sub register_config {
 				$msbuild_opt=$1; $msbuild_opt =~ s/(\r|\n)//g; next;
 			}
 			if ($ls =~ /^\s*WORKSPACE_PATH=(.+)$/) {
-				$workspace_path=$1; $workspace_path =~ s/(\r|\n)//g; next;
+				$workspace_dir=$1; $workspace_dir =~ s/(\r|\n)//g; next;
 			}
 			if ($ls =~ /^\s*WIN2K_COMP=(.+)$/) {
 				$win2k_comp=$1; $win2k_comp =~ s/(\r|\n)//g; next;
@@ -589,18 +600,18 @@ sub register_config {
 
 sub compile {
 	my $content = file::load_file("./tool/BCPACK.vcxproj.template");
+	my $tmp_workspace_dir = ::basename($workspace_dir);
 	my $result;
 	foreach my $ls (split /\n/, $content) {
 		if ($ls =~ /\Q<ClCompile Include="..\workspace\main.cpp" \E/) {
 			$result .= $ls . "\n";
 			foreach my $file (@ref_files) {
-				$result .= '    <ClCompile Include="..\\' . $workspace_dir . "\\" . $file . ".cpp" . '" />' . "\n";
+				$result .= '    <ClCompile Include="..\\' . $tmp_workspace_dir . "\\" . $file . ".cpp" . '" />' . "\n";
 			}
 			next;
 		}
 		$result .= $ls . "\n";
 	}
-	$result =~ s/\Q"..\workspace\\E/"..\\$workspace_dir/mg;
 	if ($os_name eq 'MSWin32') {
 		my $pf_path = $ENV{'ProgramFiles(x86)'};
 		my $final_pf;
@@ -620,6 +631,7 @@ sub compile {
 			}
 		}
 	}
+	$result =~ s# Include="\.\.\\workspace# Include="..\/$tmp_workspace_dir#mg;
 	file::save_file("$workspace_dir/BCPACK.vcxproj", $result);
 	print "Workspace created: $workspace_dir\n";
 	if ($do_not_compile eq 1) {
@@ -629,7 +641,7 @@ sub compile {
 	my $cmd = '"' . "$msbuild_path/$msbuild_filename" . '" ';
 	$cmd .= "/p:OutDir=..\\ $msbuild_opt /clp:ErrorsOnly " . '"' . "$workspace_dir/BCPACK.vcxproj" . '"';
 	print "[CMD] " . $cmd . "\n\n";
-	my $cmd_out = `$cmd`;
+	my $cmd_out = run_cmd($cmd);
 	print $cmd_out . "\n";
 	print "Done.\n";
 }
@@ -650,7 +662,7 @@ sub init {
 		}
 	}
 	if ($os_name eq 'MSWin32') {
-		$msbuild_filename="msbuild.exe";
+		$msbuild_filename="MSBuild.exe";
 	} else {
 		$msbuild_filename="msbuild";
 	}

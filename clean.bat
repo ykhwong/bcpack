@@ -52,10 +52,10 @@ if "%FINDSTR_ENABLED%" == "0" (
 )
 
 set MYVAR=
-FOR /F "usebackq delims=" %%a in (`"findstr /R "^RESULT_PATH=" %CONFIG_FILE%"`) do (
+FOR /F "usebackq delims=" %%a in (`"findstr /R "^WORKSPACE_PATH=" %CONFIG_FILE%"`) do (
 	set MYVAR=%%a
 )
-set WORKSPACE_DIR=%MYVAR:~12%
+set WORKSPACE_DIR=%MYVAR:~15%
 goto check
 
 :nt_err

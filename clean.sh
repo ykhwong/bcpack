@@ -31,11 +31,14 @@ if [ ! -z "$PATH_VAR" ]; then
 	do
 		if [ -x "$sth/rm" ]; then
 			RM_ENABLED=1
-		elif [ -x "$sth/cat" ]; then
+		fi
+		if [ -x "$sth/cat" ]; then
 			CAT_ENABLED=1
-		elif [ -x "$sth/grep" ]; then
+		fi
+		if [ -x "$sth/grep" ]; then
 			GREP_ENABLED=1
-		elif [ -x "$sth/sed" ]; then
+		fi
+		if [ -x "$sth/sed" ]; then
 			SED_ENABLED=1
 		fi
 	done

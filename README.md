@@ -11,9 +11,11 @@ BCPack alone can work on Windows and Unix-like operating systems including Linux
 ### Prerequisites
 **1. Perl 5**
 * **Windows**
+
 Just install Perl such as Strawberry Perl. (Download from http://strawberryperl.com/)
 
 * **Unix-like operating system**
+
 Type the following command for the manual installation:
 ```sh
 $ yum -y install perl # CentOS/RHEL
@@ -73,6 +75,7 @@ common section contains useful options for the compatibility details.
  MSBUILD_PATH={MSBuild path}
  MSBUILD_OPT={MSBuild options}
  WORKSPACE_PATH={Workspace path}
+ DEBUG_LOGLVL={0|1}              Set to 1 to enable the runtime debugging
  WIN2K_COMP={0|1}                Set to 1 to ensure Windows 2000 compatibility
  WIN98_COMP={0|1}                Set to 1 to ensure Windows 98 compatibility
  WIN95_COMP={0|1}                Set to 1 to ensure Windows 95 compatibility

@@ -10,7 +10,7 @@
 MSBUILD_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin
 MSBUILD_OPT=/t:Rebuild /p:Configuration=Release;Platform=win32
 WORKSPACE_PATH=.\workspace
-DEBUG_LOGLVL=0
+DEBUG_LOGLVL=1
 WIN2K_COMP=1
 WIN98_COMP=1
 WIN95_COMP=1

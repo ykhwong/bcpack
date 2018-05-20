@@ -1,4 +1,3 @@
-#ifndef _WIN64
 /*
 
  This library is free software; you can redistribute it and/or
@@ -16,6 +15,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
 
 */
+#ifndef _WIN64
 #ifndef _WINTERNL_
 #define _WINTERNL_
 
@@ -632,4 +632,4 @@ static inline PPEB_2K NtCurrentPeb(void) {
 #pragma endregion
 
 #endif // _WINTERNL_
-#endif
+#endif //_WIN64

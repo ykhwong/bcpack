@@ -16,7 +16,7 @@
 
 */
 #define KeInitializeSpinLock(sl) {                    \
-  *(sl) = 0;                                          \
+    *(sl) = 0;                                        \
 }
 
 #define AcquireXLock(gLock, oldValue, newValue) {     \

@@ -17,6 +17,7 @@
 */
 #include "common.h"
 #include "util.h"
+#include "debug.h"
 
 #if _WIN64
 #else
@@ -24,16 +25,28 @@
 #if ADDITIONAL_COMP
 MAKE_FUNC_READY(CharLowerW, Is2kOrHigher_98MENT, "USER32.DLL", LPWSTR, LPWSTR x)
 MAKE_FUNC_BEGIN(CharLowerW, x) {
-	if (HIWORD(x)) return strlwrW(x);
-	else return (LPWSTR)((UINT_PTR)tolowerW(LOWORD(x)));
+	DEBUG_LOG("SHLWAPI CharLowerW: START\r\n");
+	if (HIWORD(x)) {
+		DEBUG_LOG("SHLWAPI CharLowerW: END (1)\r\n");
+		return strlwrW(x);
+	} else {
+		DEBUG_LOG("SHLWAPI CharLowerW: END (2)\r\n");
+		return (LPWSTR)((UINT_PTR)tolowerW(LOWORD(x)));
+	}
 }
 MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(CharUpperW, Is2kOrHigher_98MENT, "USER32.DLL", LPWSTR, LPWSTR x)
 MAKE_FUNC_BEGIN(CharUpperW, x) {
-	if (HIWORD(x)) return struprW(x);
-	else return (LPWSTR)((UINT_PTR)toupperW(LOWORD(x)));
+	DEBUG_LOG("SHLWAPI CharUpperW: START\r\n");
+	if (HIWORD(x)) {
+		DEBUG_LOG("SHLWAPI CharUpperW: END (1)\r\n");
+		return struprW(x);
+	} else {
+		DEBUG_LOG("SHLWAPI CharUpperW: END (2)\r\n");
+		return (LPWSTR)((UINT_PTR)toupperW(LOWORD(x)));
+	}
 }
 MAKE_FUNC_END
 

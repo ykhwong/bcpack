@@ -31,9 +31,9 @@ my $do_not_compile=0;
 my $show_config=0;
 my $msbuild_filename=0;
 
-my ($msbuild_path, $msbuild_opt, $win2k_comp, $win98_comp, $win95_comp, $debug_comp, $additional_comp, $forced_func, $forced_dummy) = (0) x 10;
+my ($msbuild_path, $msbuild_opt, $debug_loglvl, $win2k_comp, $win98_comp, $win95_comp, $debug_comp, $additional_comp, $forced_func, $forced_dummy) = (0) x 11;
 
-my @def = ("util.h", "custom_winternl.h", "main.cpp", "targetver.h", "stdafx.cpp", "stdafx.h");
+my @def = ("util.h", "custom_winternl.h", "main.cpp", "targetver.h", "stdafx.cpp", "stdafx.h", "debug.cpp", "debug.h");
 my (@win2k_func, @win98_func, @win95_func, @debug_func, @additional_func);
 my @ref_files; # such as kernel32.cpp
 my @enum_funcs;
@@ -107,6 +107,7 @@ sub show_status {
 	my $status = "MSBUILD_PATH=$msbuild_path\n" .
 	"MSBUILD_OPT=$msbuild_opt\n" .
 	"WORKSPACE_PATH=$workspace_dir\n" .
+	"DEBUG_LOGLVL=$debug_loglvl\n" .
 	"WIN2K_COMP=$win2k_comp\n" .
 	"WIN98_COMP=$win98_comp\n" .
 	"WIN95_COMP=$win95_comp\n" .
@@ -426,12 +427,12 @@ sub load_and_copy_cpp_files {
 sub create_common_header_for_msvc {
 	my ($ret, $content, @cols);
 	$ret = file::load_file("./tool/common.h.template");
+	$ret =~ s/\Q#define DEBUG_LOGLVL 0\E/#define DEBUG_LOGLVL $debug_loglvl/;
 	foreach my $file (@ref_files) {
 		$content = file::load_file("$workspace_dir/$file" . ".cpp");
 		foreach my $ls (split /\n/, $content) {
 			if ($ls =~ /^\s*MAKE_FUNC_READY\s*\(/) {
 				$ls =~ s/^\s*MAKE_FUNC_READY\s*\(/EXTERN_FUNC(/;
-				#print "$workspace_dir/$file : $ls\n";
 				push @cols, $ls;
 			}
 		}
@@ -526,6 +527,9 @@ sub register_config {
 			}
 			if ($ls =~ /^\s*WORKSPACE_PATH=(.+)$/) {
 				$workspace_dir=$1; $workspace_dir =~ s/(\r|\n)//g; next;
+			}
+			if ($ls =~ /^\s*DEBUG_LOGLVL=(.+)$/) {
+				$debug_loglvl=$1; $debug_loglvl =~ s/(\r|\n)//g; next;
 			}
 			if ($ls =~ /^\s*WIN2K_COMP=(.+)$/) {
 				$win2k_comp=$1; $win2k_comp =~ s/(\r|\n)//g; next;

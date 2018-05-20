@@ -17,6 +17,7 @@
 */
 #include "common.h"
 #include "util.h"
+#include "debug.h"
 
 #if _WIN64
 #else
@@ -59,16 +60,19 @@ static VOID WINAPI _GetSystemInfoInternal(IN PSYSTEM_BASIC_INFORMATION BasicInfo
 
 MAKE_FUNC_READY(RtlFreeUnicodeString, Is98OrHigher_95, "NTDLL.DLL", VOID, IN PUNICODE_STRING UnicodeString)
 MAKE_FUNC_BEGIN(RtlFreeUnicodeString, UnicodeString) {
+	DEBUG_LOG("NTDLL RtlFreeUnicodeString: START\r\n");
 	if (UnicodeString->Buffer) {
 		//RtlpFreeMemory(UnicodeString->Buffer, TAG_USTR);
 		RtlZeroMemory(UnicodeString, sizeof(UNICODE_STRING));
 	}
+	DEBUG_LOG("NTDLL RtlFreeUnicodeString: END\r\n");
 }
 MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(RtlInitString, Is98OrHigher_95, "NTDLL.DLL", VOID, IN OUT PSTRING DestinationString, IN PCSZ SourceString)
 MAKE_FUNC_BEGIN(RtlInitString, DestinationString, SourceString) {
+	DEBUG_LOG("NTDLL RtlInitString: START\r\n");
 	SIZE_T Size;
 
 	if (SourceString) {
@@ -83,18 +87,21 @@ MAKE_FUNC_BEGIN(RtlInitString, DestinationString, SourceString) {
 	}
 
 	DestinationString->Buffer = (PCHAR)SourceString;
+	DEBUG_LOG("NTDLL RtlInitString: END\r\n");
 }
 MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(RtlInitAnsiString, Is2kOrHigher_98MENT, "NTDLL.DLL", VOID, PANSI_STRING target, PCSZ source)
 MAKE_FUNC_BEGIN(RtlInitAnsiString, target, source) {
+	DEBUG_LOG("NTDLL RtlInitAnsiString: START\r\n");
 	if ((target->Buffer = (PCHAR)source)) {
 		target->Length = (USHORT)strlen(source);
 		target->MaximumLength = target->Length + 1;
 	}
 	else
 		target->Length = target->MaximumLength = 0;
+	DEBUG_LOG("NTDLL RtlInitAnsiString: END\r\n");
 }
 MAKE_FUNC_END
 
@@ -109,19 +116,25 @@ MAKE_FUNC_DUMMY(NtQuerySystemInformation, ((NTSTATUS)0xC0000002), SystemInformat
 
 MAKE_FUNC_READY(GetNativeSystemInfo, IsXpOrHigher_2K, "NTDLL.DLL", VOID, LPSYSTEM_INFO lpSystemInfo)
 MAKE_FUNC_BEGIN(GetNativeSystemInfo, lpSystemInfo) {
+	DEBUG_LOG("NTDLL GetNativeSystemInfo: START\r\n");
 	SYSTEM_BASIC_INFORMATION BasicInfo;
 	SYSTEM_PROCESSOR_INFORMATION ProcInfo;
 	NTSTATUS Status;
 
 	//TED
 	Status = _NtQuerySystemInformation(SystemBasicInformation, &BasicInfo, sizeof(BasicInfo), 0);
-	if (!NT_SUCCESS(Status)) return;
-
+	if (!NT_SUCCESS(Status)) {
+		DEBUG_LOG("NTDLL GetNativeSystemInfo: END (1)\r\n");
+		return;
+	}
 	//TED
 	Status = _NtQuerySystemInformation(SystemProcessorInformation, &ProcInfo, sizeof(ProcInfo), 0);
-	if (!NT_SUCCESS(Status)) return;
-
+	if (!NT_SUCCESS(Status)) {
+		DEBUG_LOG("NTDLL GetNativeSystemInfo: END (2)\r\n");
+		return;
+	}
 	_GetSystemInfoInternal(&BasicInfo, &ProcInfo, lpSystemInfo);
+	DEBUG_LOG("NTDLL GetNativeSystemInfo: END (3)\r\n");
 }
 MAKE_FUNC_END
 

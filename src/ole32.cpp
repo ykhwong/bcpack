@@ -16,6 +16,7 @@
 
 */
 #include "common.h"
+#include "debug.h"
 
 #if _WIN64
 #else
@@ -23,6 +24,8 @@
 #if ADDITIONAL_COMP
 MAKE_FUNC_READY(CoInitializeEx, Is2kOrHigher_98MENT, "OLE32.DLL", HRESULT, _In_opt_ LPVOID pvReserved, _In_     DWORD  dwCoInit)
 MAKE_FUNC_BEGIN(CoInitializeEx, pvReserved, dwCoInit) {
+	DEBUG_LOG("OLE32 CoInitializeEx: START\r\n");
+	DEBUG_LOG("OLE32 CoInitializeEx: END\r\n");
 	return CoInitialize(pvReserved);
 }
 MAKE_FUNC_END

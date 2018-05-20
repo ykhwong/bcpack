@@ -12,6 +12,8 @@
 #include "config.h"
 #include "enum.h"
 
+#define DEBUG_LOGLVL 0
+
 #if FORCED_FUNC
 const BOOL IsXpOrHigher_2K = false;
 const BOOL Is2kOrHigher_98MENT = false;

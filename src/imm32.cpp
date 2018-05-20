@@ -16,6 +16,7 @@
 
 */
 #include "common.h"
+#include "debug.h"
 
 #if _WIN64
 #else
@@ -23,24 +24,24 @@
 #if ADDITIONAL_COMP
 MAKE_FUNC_READY(ImmDisableTextFrameService, IsXpOrHigher_2K, "IMM32.DLL", BOOL, DWORD idThread)
 MAKE_FUNC_BEGIN(ImmDisableTextFrameService, idThread) {
-	// FIX ME
-	return TRUE;
+	DEBUG_LOG("IMM32 ImmDisableTextFrameService: NOT_IMPLEMENTED\r\n");
+	return TRUE; // FIX ME
 }
 MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(ImmEnumInputContext, IsXpOrHigher_2K, "IMM32.DLL", BOOL, DWORD idThread, IMCENUMPROC lpfn, LPARAM lParam)
 MAKE_FUNC_BEGIN(ImmEnumInputContext, idThread, lpfn, lParam) {
-	// FIX ME
-	return FALSE;
+	DEBUG_LOG("IMM32 ImmEnumInputContext: NOT_IMPLEMENTED\r\n");
+	return FALSE; // FIX ME
 }
 MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(ImmGetHotKey, IsXpOrHigher_2K, "IMM32.DLL", BOOL, DWORD hotkey, UINT *modifiers, UINT *key, HKL hkl)
 MAKE_FUNC_BEGIN(ImmGetHotKey, hotkey, modifiers, key, hkl) {
-	// FIX ME
-	return FALSE;
+	DEBUG_LOG("IMM32 ImmGetHotKey: NOT_IMPLEMENTED\r\n");
+	return FALSE; //FIX ME
 }
 MAKE_FUNC_END
 #endif // ADDITIONAL_COMP

@@ -181,6 +181,7 @@
   <ItemGroup>
     <ClInclude Include="..\workspace\common.h" />
     <ClInclude Include="..\workspace\config.h" />
+    <ClInclude Include="..\workspace\debug.h" />
     <ClInclude Include="..\workspace\stdafx.h" />
     <ClInclude Include="..\workspace\targetver.h" />
     <ClInclude Include="..\workspace\util.h" />
@@ -188,6 +189,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\workspace\main.cpp" />
+    <ClCompile Include="..\workspace\debug.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\workspace\config.inc" />

@@ -18,6 +18,7 @@
 #include "common.h"
 #include "kernel32.h"
 #include "util.h"
+#include "debug.h"
 
 #if _WIN64
 #else
@@ -223,6 +224,8 @@ static NTSTATUS NTAPI _RtlInitializeCriticalSectionAndSpinCount(PRTL_CRITICAL_SE
 #if WIN2K_COMP
 MAKE_FUNC_READY(EncodePointer, IsXpOrHigher_2K, "KERNEL32.DLL", PVOID, PVOID ptr)
 MAKE_FUNC_BEGIN(EncodePointer, ptr)  {
+	DEBUG_LOG("KERNEL32 EncodePointer: START\r\n");
+	DEBUG_LOG("KERNEL32 EncodePointer: END\r\n");
 	return (PVOID)((UINT_PTR)ptr ^ 0xDEADBEEF);
 }
 MAKE_FUNC_END
@@ -230,6 +233,8 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(DecodePointer, IsXpOrHigher_2K, "KERNEL32.DLL", PVOID, PVOID ptr)
 MAKE_FUNC_BEGIN(DecodePointer, ptr) {
+	DEBUG_LOG("KERNEL32 DecodePointer: START\r\n");
+	DEBUG_LOG("KERNEL32 DecodePointer: END\r\n");
 	return (PVOID)((UINT_PTR)ptr ^ 0xDEADBEEF);
 }
 MAKE_FUNC_END
@@ -237,6 +242,8 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(InitializeSListHead, IsXpOrHigher_2K, "KERNEL32.DLL", VOID, PSLIST_HEADER list)
 MAKE_FUNC_BEGIN(InitializeSListHead, list) {
+	DEBUG_LOG("KERNEL32 InitializeSListHead: START\r\n");
+	DEBUG_LOG("KERNEL32 InitializeSListHead: END\r\n");
 	RtlZeroMemory(list, sizeof(SLIST_HEADER));
 }
 MAKE_FUNC_END
@@ -244,29 +251,32 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(GetModuleHandleExW, IsXpOrHigher_2K, "KERNEL32.DLL", BOOL, DWORD dwFlags, PWSTR lpModuleName, HMODULE *phModule)
 MAKE_FUNC_BEGIN(GetModuleHandleExW, dwFlags, lpModuleName, phModule) {
-		_LoaderLock(TRUE);
-		if (dwFlags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS)
-			*phModule = _GetModuleHandleFromPtr(lpModuleName);
-		else
-			*phModule = GetModuleHandleW(lpModuleName);
-
-		if (*phModule == NULL) {
-			_LoaderLock(FALSE);
-			return FALSE;
-		}
-
-		if (!(dwFlags & GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT) ||
-			dwFlags & GET_MODULE_HANDLE_EX_FLAG_PIN) {
-			_IncLoadCount(*phModule);
-		}
+	DEBUG_LOG("KERNEL32 InitializeSListHead: START\r\n");
+	_LoaderLock(TRUE);
+	if (dwFlags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS)
+		*phModule = _GetModuleHandleFromPtr(lpModuleName);
+	else
+		*phModule = GetModuleHandleW(lpModuleName);
+	if (*phModule == NULL) {
 		_LoaderLock(FALSE);
-		return TRUE;
+		DEBUG_LOG("KERNEL32 InitializeSListHead: END (1)\r\n");
+		return FALSE;
+	}
+
+	if (!(dwFlags & GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT) ||
+		dwFlags & GET_MODULE_HANDLE_EX_FLAG_PIN) {
+		_IncLoadCount(*phModule);
+	}
+	_LoaderLock(FALSE);
+	DEBUG_LOG("KERNEL32 InitializeSListHead: END (2)\r\n");
+	return TRUE;
 }
 MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(InterlockedFlushSList, IsXpOrHigher_2K, "KERNEL32.DLL", PSLIST_ENTRY, PSLIST_HEADER list)
 MAKE_FUNC_BEGIN(InterlockedFlushSList, list) {
+	DEBUG_LOG("KERNEL32 InterlockedFlushSList: START\r\n");
 	SLIST_HEADER OldHeader, NewHeader;
 	ULONGLONG Compare;
 
@@ -276,6 +286,7 @@ MAKE_FUNC_BEGIN(InterlockedFlushSList, list) {
 	do {
 		/* Check for empty list */
 		if (OldHeader.Next.Next == NULL) {
+			DEBUG_LOG("KERNEL32 InterlockedFlushSList: END (1)\r\n");
 			return NULL;
 		}
 
@@ -292,6 +303,7 @@ MAKE_FUNC_BEGIN(InterlockedFlushSList, list) {
 	} while (OldHeader.Alignment != Compare);
 
 	/* Return the old first entry */
+	DEBUG_LOG("KERNEL32 InterlockedFlushSList: END (2)\r\n");
 	return OldHeader.Next.Next;
 }
 MAKE_FUNC_END
@@ -299,6 +311,7 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(InterlockedPushEntrySList, IsXpOrHigher_2K, "KERNEL32.DLL", PSLIST_ENTRY, PSLIST_HEADER ListHead, PSLIST_ENTRY ListEntry)
 MAKE_FUNC_BEGIN(InterlockedPushEntrySList, ListHead, ListEntry) {
+	DEBUG_LOG("KERNEL32 InterlockedPushEntrySList: START\r\n");
 	PVOID PrevValue;
 
 	do {
@@ -308,6 +321,7 @@ MAKE_FUNC_BEGIN(InterlockedPushEntrySList, ListHead, ListEntry) {
 		ListEntry,
 		PrevValue) != PrevValue);
 
+	DEBUG_LOG("KERNEL32 InterlockedPushEntrySList: END\r\n");
 	return (PSLIST_ENTRY)PrevValue;
 }
 MAKE_FUNC_END
@@ -316,6 +330,8 @@ MAKE_FUNC_END
 #if WIN98_COMP
 MAKE_FUNC_READY(SetFilePointerEx, Is2kOrHigher_98MENT, "KERNEL32.DLL", BOOL, HANDLE hFile, LARGE_INTEGER liDistanceToMove, PLARGE_INTEGER lpNewFilePointer, DWORD dwMoveMethod)
 MAKE_FUNC_BEGIN(SetFilePointerEx, hFile, liDistanceToMove, lpNewFilePointer, dwMoveMethod) {
+	DEBUG_LOG("KERNEL32 SetFilePointerEx: START\r\n");
+	DEBUG_LOG("KERNEL32 SetFilePointerEx: END\r\n");
 	return SetFilePointer(hFile, liDistanceToMove.LowPart, &liDistanceToMove.HighPart, dwMoveMethod);
 }
 MAKE_FUNC_END
@@ -327,6 +343,8 @@ MAKE_FUNC_END
 #if WIN95_COMP
 MAKE_FUNC_READY(IsDebuggerPresent, Is98OrHigher_95, "KERNEL32.DLL", BOOL, VOID)
 MAKE_FUNC_BEGIN(IsDebuggerPresent, ) {
+	DEBUG_LOG("KERNEL32 IsDebuggerPresent: START\r\n");
+	DEBUG_LOG("KERNEL32 IsDebuggerPresent: END\r\n");
 	return (BOOL)NtCurrentPeb()->BeingDebugged;
 }
 MAKE_FUNC_END
@@ -353,15 +371,18 @@ MAKE_FUNC_DUMMY(FindFirstFileExW, INVALID_HANDLE_VALUE, lpFileName, fInfoLevelId
 
 MAKE_FUNC_READY(IsProcessorFeaturePresent, Is98OrHigher_95, "KERNEL32.DLL", BOOL, IN DWORD ProcessorFeature)
 MAKE_FUNC_BEGIN(IsProcessorFeaturePresent, ProcessorFeature) {
+	DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: START\r\n");
 	if (ProcessorFeature >= 64) return FALSE;
 	if (ProcessorFeature == PF_XMMI64_INSTRUCTIONS_AVAILABLE) {
 		uintptr_t a, b, c, d;
 		cpuid(1, a, b, c, d);
 		if ((d >> 26) & 1) {
+			DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: END (1)\r\n");
 			return true;
 		}
 	}
 	//return ((BOOL)(SHARED_DATA->ProcessorFeatures[ProcessorFeature]));
+	DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: END (2)\r\n");
 	return false;
 }
 MAKE_FUNC_END
@@ -370,6 +391,7 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(InitializeCriticalSectionAndSpinCount, Is98OrHigher_95, "KERNEL32.DLL", BOOL, OUT LPCRITICAL_SECTION lpCriticalSection, IN DWORD dwSpinCount)
 MAKE_FUNC_BEGIN(InitializeCriticalSectionAndSpinCount, lpCriticalSection, dwSpinCount) {
+	DEBUG_LOG("KERNEL32 InitializeCriticalSectionAndSpinCount: START\r\n");
 	NTSTATUS Status;
 
 	/* Initialize the critical section */
@@ -379,10 +401,12 @@ MAKE_FUNC_BEGIN(InitializeCriticalSectionAndSpinCount, lpCriticalSection, dwSpin
 		/* Set failure code */
 		//BaseSetLastNTError(Status);
 		SetLastError(Status);
+		DEBUG_LOG("KERNEL32 InitializeCriticalSectionAndSpinCount: END (1)\r\n");
 		return FALSE;
 	}
 
 	/* Success */
+	DEBUG_LOG("KERNEL32 InitializeCriticalSectionAndSpinCount: END (2)\r\n");
 	return TRUE;
 }
 MAKE_FUNC_END
@@ -397,14 +421,15 @@ static NTSTATUS WINAPI _RtlQueryHeapInformation(HANDLE heap, HEAP_INFORMATION_CL
 	case HeapCompatibilityInformation:
 		if (size_out) *size_out = sizeof(ULONG);
 
-		if (size_in < sizeof(ULONG))
+		if (size_in < sizeof(ULONG)) {
 			return ((NTSTATUS)0xC0000023L);
+		}
 
 		*(ULONG *)info = 0; /* standard heap */
 		return 1;
 
 	default:
-		//FIXME("Unknown heap information class %u\n", info_class);
+		//FIXME("Unknown heap information class %u\r\n", info_class);
 		return ((NTSTATUS)0xC0000003);
 	}
 }
@@ -412,15 +437,18 @@ static NTSTATUS WINAPI _RtlQueryHeapInformation(HANDLE heap, HEAP_INFORMATION_CL
 
 MAKE_FUNC_READY(HeapQueryInformation, IsXpOrHigher_2K, "KERNEL32.DLL", BOOL, HANDLE HeapHandle, HEAP_INFORMATION_CLASS HeapInformationClass, PVOID HeapInformation OPTIONAL, SIZE_T HeapInformationLength OPTIONAL, PSIZE_T ReturnLength OPTIONAL)
 MAKE_FUNC_BEGIN(HeapQueryInformation, HeapHandle, HeapInformationClass, HeapInformation, HeapInformationLength, ReturnLength)
-NTSTATUS Status;
-Status = _RtlQueryHeapInformation(HeapHandle, HeapInformationClass, HeapInformation, HeapInformationLength, ReturnLength);
+	DEBUG_LOG("KERNEL32 HeapQueryInformation: START\r\n");
+	NTSTATUS Status;
+	Status = _RtlQueryHeapInformation(HeapHandle, HeapInformationClass, HeapInformation, HeapInformationLength, ReturnLength);
 
-if (!NT_SUCCESS(Status)) {
-	//BaseSetLastNTError(Status);
-	return FALSE;
-}
+	if (!NT_SUCCESS(Status)) {
+		//BaseSetLastNTError(Status);
+		DEBUG_LOG("KERNEL32 HeapQueryInformation: END (1)\r\n");
+		return FALSE;
+	}
 
-return TRUE;
+	DEBUG_LOG("KERNEL32 HeapQueryInformation: END (2)\r\n");
+	return TRUE;
 MAKE_FUNC_END
 #endif // DEBUG_COMP
 
@@ -428,6 +456,7 @@ MAKE_FUNC_END
 #if ADDITIONAL_COMP
 MAKE_FUNC_READY(GetModuleHandleExA, IsXpOrHigher_2K, "KERNEL32.DLL", BOOL, DWORD dwFlags, PWSTR lpModuleName, HMODULE *phModule)
 MAKE_FUNC_BEGIN(GetModuleHandleExA, dwFlags, lpModuleName, phModule) {
+	DEBUG_LOG("KERNEL32 GetModuleHandleExA: START\r\n");
 	BOOL ret;
 	UNICODE_STRING unicode;
 	STRING ansi;
@@ -437,8 +466,10 @@ MAKE_FUNC_BEGIN(GetModuleHandleExA, dwFlags, lpModuleName, phModule) {
 		_RtlAnsiStringToUnicodeString(&unicode, &ansi, TRUE);
 		ret = _GetModuleHandleExW(dwFlags, unicode.Buffer, phModule);
 		_RtlFreeUnicodeString(&unicode);
+		DEBUG_LOG("KERNEL32 GetModuleHandleExA: END (1)\r\n");
 		return ret;
 	}
+	DEBUG_LOG("KERNEL32 GetModuleHandleExA: END (2)\r\n");
 	return false;
 }
 MAKE_FUNC_END
@@ -446,6 +477,7 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(InterlockedPopEntrySList, IsXpOrHigher_2K, "KERNEL32.DLL", PSLIST_ENTRY, PSLIST_HEADER list)
 MAKE_FUNC_BEGIN(InterlockedPopEntrySList, list) {
+	DEBUG_LOG("KERNEL32 InterlockedPopEntrySList: START\r\n");
 	PSLIST_ENTRY Result = NULL;
 	//UCHAR OldIrql;
 	static BOOLEAN GLLInit = FALSE;
@@ -462,6 +494,7 @@ MAKE_FUNC_BEGIN(InterlockedPopEntrySList, list) {
 		list->Next.Next = Result->Next;
 	}
 	KeReleaseSpinLock(&GlobalListLock, OldIrql);
+	DEBUG_LOG("KERNEL32 InterlockedPopEntrySList: END\r\n");
 	return Result;
 }
 MAKE_FUNC_END
@@ -469,6 +502,8 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(QueryDepthSList, IsXpOrHigher_2K, "KERNEL32.DLL", WORD, PSLIST_HEADER list)
 MAKE_FUNC_BEGIN(QueryDepthSList, list) {
+	DEBUG_LOG("KERNEL32 QueryDepthSList: START\r\n");
+	DEBUG_LOG("KERNEL32 QueryDepthSList: END\r\n");
 	return (USHORT)(list->Alignment & 0xffff);
 }
 MAKE_FUNC_END
@@ -477,23 +512,28 @@ MAKE_FUNC_END
 /* From Wine implementation over their unicode library */
 MAKE_FUNC_READY(WideCharToMultiByte, Is2kOrHigher_98MENT, "KERNEL32.DLL", INT, UINT page, DWORD flags, LPCWSTR src, INT srclen, LPSTR dst, INT dstlen, LPCSTR defchar, BOOL *used)
 MAKE_FUNC_BEGIN(WideCharToMultiByte, page, flags, src, srclen, dst, dstlen, defchar, used) {
+	DEBUG_LOG("KERNEL32 WideCharToMultiByte: START\r\n");
 	int i;
 
 	if (!src || !srclen || (!dst && dstlen)) {
 		SetLastError(ERROR_INVALID_PARAMETER);
+		DEBUG_LOG("KERNEL32 WideCharToMultiByte: END (1)\r\n");
 		return 0;
 	}
 
 	if (srclen < 0) srclen = strlenW(src) + 1;
 
-	if (!dstlen)
+	if (!dstlen) {
+		DEBUG_LOG("KERNEL32 WideCharToMultiByte: END (2)\r\n");
 		return srclen;
+	}
 
 	for (i = 0; i<srclen && i<dstlen; i++)
 		dst[i] = src[i] & 0xFF;
 
 	if (used) *used = FALSE;
 
+	DEBUG_LOG("KERNEL32 WideCharToMultiByte: END (3)\r\n");
 	return i;
 }
 MAKE_FUNC_END
@@ -501,11 +541,13 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(AttachConsole, IsXpOrHigher_2K, "KERNEL32.DLL", BOOL, DWORD dwProcessId)
 MAKE_FUNC_BEGIN(AttachConsole, dwProcessId) {
+	DEBUG_LOG("KERNEL32 AttachConsole: START\r\n");
 	if (dwProcessId != GetCurrentProcessId()) {
-		//LOG_WARN("AttachConsole does not support other processes");
+		DEBUG_LOG("KERNEL32 AttachConsole: AttachConsole does not support other processes\r\n");
 	}
 	//Just make sure we have a console
 	AllocConsole();
+	DEBUG_LOG("KERNEL32 AttachConsole: END\r\n");
 	return TRUE;
 }
 MAKE_FUNC_END
@@ -513,6 +555,7 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(CompareStringW, Is2kOrHigher_98MENT, "KERNEL32.DLL", INT, DWORD lcid, DWORD flags, LPCWSTR str1, INT len1, LPCWSTR str2, INT len2)
 MAKE_FUNC_BEGIN(CompareStringW, lcid, flags, str1, len1, str2, len2) {
+	DEBUG_LOG("KERNEL32 CompareStringW: START\r\n");
 	static const DWORD supported_flags = NORM_IGNORECASE | NORM_IGNORENONSPACE | NORM_IGNORESYMBOLS | SORT_STRINGSORT
 		| NORM_IGNOREKANATYPE | NORM_IGNOREWIDTH | LOCALE_USE_CP_ACP
 		| NORM_LINGUISTIC_CASING | LINGUISTIC_IGNORECASE | 0x10000000;
@@ -522,16 +565,18 @@ MAKE_FUNC_BEGIN(CompareStringW, lcid, flags, str1, len1, str2, len2) {
 
 	if (!str1 || !str2) {
 		SetLastError(ERROR_INVALID_PARAMETER);
+		DEBUG_LOG("KERNEL32 CompareStringW: END (1)\r\n");
 		return 0;
 	}
 
 	if (flags & ~supported_flags) {
 		SetLastError(ERROR_INVALID_FLAGS);
+		DEBUG_LOG("KERNEL32 CompareStringW: END (2)\r\n");
 		return 0;
 	}
 
 	if (flags & semistub_flags) {
-		//FIXME("semi-stub behavior for flag(s) 0x%x\n", flags & semistub_flags);
+		//FIXME("semi-stub behavior for flag(s) 0x%x\r\n", flags & semistub_flags);
 		semistub_flags &= ~flags;
 	}
 
@@ -540,8 +585,12 @@ MAKE_FUNC_BEGIN(CompareStringW, lcid, flags, str1, len1, str2, len2) {
 
 	ret = wine_compare_string(flags, str1, len1, str2, len2);
 
-	if (ret) /* need to translate result */
+	if (ret) {
+		/* need to translate result */
+		DEBUG_LOG("KERNEL32 CompareStringW: END (3)\r\n");
 		return (ret < 0) ? CSTR_LESS_THAN : CSTR_GREATER_THAN;
+	}
+	DEBUG_LOG("KERNEL32 CompareStringW: END (4)\r\n");
 	return CSTR_EQUAL;
 }
 MAKE_FUNC_END
@@ -549,13 +598,18 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(GetFileAttributesExA, IsXpOrHigher_2K, "KERNEL32.DLL", BOOL, LPCSTR lpFileName, GET_FILEEX_INFO_LEVELS fInfoLevelId, LPVOID lpFileInformation)
 MAKE_FUNC_BEGIN(GetFileAttributesExA, lpFileName, fInfoLevelId, lpFileInformation) {
+	DEBUG_LOG("KERNEL32 GetFileAttributesExA: START\r\n");
 	PWCHAR FileNameW;
 
-	if (!(FileNameW = _FilenameA2W(lpFileName, FALSE)))
+	if (!(FileNameW = _FilenameA2W(lpFileName, FALSE))) {
+		DEBUG_LOG("KERNEL32 GetFileAttributesExA: END (1)\r\n");
 		return FALSE;
+	}
 #if WIN98_COMP && !WIN95_COMP
+	DEBUG_LOG("KERNEL32 GetFileAttributesExA: END (2)\r\n");
 	return FALSE;
 #else
+	DEBUG_LOG("KERNEL32 GetFileAttributesExA: END (3)\r\n");
 	return _GetFileAttributesExW(FileNameW, fInfoLevelId, lpFileInformation);
 #endif
 }
@@ -566,6 +620,7 @@ MAKE_FUNC_BEGIN(GetFileSizeEx, file, fsize) {
 	//if (_fseek((FILE*)file, 0, 2) == -1)
 	//	return FALSE;
 	//fsize->QuadPart = _ftell((FILE*)file);
+	DEBUG_LOG("KERNEL32 GetFileSizeEx: NOT_IMPLEMENTED\r\n");
 	return TRUE;
 }
 MAKE_FUNC_END
@@ -573,19 +628,26 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(lstrcmpW, Is2kOrHigher_98MENT, "KERNEL32.DLL", INT, LPCWSTR lpString1, LPCWSTR lpString2)
 MAKE_FUNC_BEGIN(lstrcmpW, lpString1, lpString2) {
+	DEBUG_LOG("KERNEL32 lstrcmpW: START\r\n");
 	int Result;
 
-	if (lpString1 == lpString2)
+	if (lpString1 == lpString2) {
+		DEBUG_LOG("KERNEL32 lstrcmpW: END (1)\r\n");
 		return 0;
-	if (lpString1 == NULL)
+	}
+	if (lpString1 == NULL) {
+		DEBUG_LOG("KERNEL32 lstrcmpW: END (2)\r\n");
 		return -1;
-	if (lpString2 == NULL)
+	}
+	if (lpString2 == NULL) {
+		DEBUG_LOG("KERNEL32 lstrcmpW: END (3)\r\n");
 		return 1;
-
+	}
 	Result = CompareStringW(GetThreadLocale(), 0, lpString1, -1, lpString2, -1);
 	if (Result)
 		Result -= 2;
 
+	DEBUG_LOG("KERNEL32 lstrcmpW: END (4)\r\n");
 	return Result;
 }
 MAKE_FUNC_END
@@ -593,8 +655,10 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(lstrlenW, Is2kOrHigher_98MENT, "KERNEL32.DLL", INT, LPCWSTR lpString)
 MAKE_FUNC_BEGIN(lstrlenW, lpString) {
+	DEBUG_LOG("KERNEL32 lstrlenW: START\r\n");
 	INT Ret = 0;
 	Ret = _wcslen(lpString);
+	DEBUG_LOG("KERNEL32 lstrlenW: END\r\n");
 	return Ret;
 }
 MAKE_FUNC_END
@@ -606,6 +670,7 @@ MAKE_FUNC_DUMMY(GetLocaleInfoW, 1, lcid, lctype, buffer, len)
 
 MAKE_FUNC_READY(GetStringTypeW, Is2kOrHigher_98MENT, "KERNEL32.DLL", BOOL, DWORD type, LPCWSTR src, INT count, LPWORD chartype)
 MAKE_FUNC_BEGIN(GetStringTypeW,type, src, count, chartype) {
+	DEBUG_LOG("KERNEL32 GetStringTypeW: START\r\n");
 	static const unsigned char type2_map[16] =
 	{
 		C2_NOTAPPLICABLE,      /* unassigned */
@@ -629,6 +694,7 @@ MAKE_FUNC_BEGIN(GetStringTypeW,type, src, count, chartype) {
 	if (!src) /* Abort and return FALSE when src is null */
 	{
 		SetLastError(ERROR_INVALID_PARAMETER);
+		DEBUG_LOG("KERNEL32 GetStringTypeW: END (1)\r\n");
 		return FALSE;
 	}
 	if (count == -1) count = strlenW(src) + 1;
@@ -642,7 +708,7 @@ MAKE_FUNC_BEGIN(GetStringTypeW,type, src, count, chartype) {
 		break;
 	case CT_CTYPE3:
 	{
-		//WARN("CT_CTYPE3: semi-stub.\n");
+		//WARN("CT_CTYPE3: semi-stub.\r\n");
 		while (count--)
 		{
 			int c = *src;
@@ -682,14 +748,17 @@ MAKE_FUNC_BEGIN(GetStringTypeW,type, src, count, chartype) {
 	}
 	default:
 		SetLastError(ERROR_INVALID_PARAMETER);
+		DEBUG_LOG("KERNEL32 GetStringTypeW: END (2)\r\n");
 		return FALSE;
 	}
+	DEBUG_LOG("KERNEL32 GetStringTypeW: END (3)\r\n");
 	return TRUE;
 }
 MAKE_FUNC_END
 
 MAKE_FUNC_READY(InitializeCriticalSectionEx, Is2kOrHigher_98MENT, "KERNEL32.DLL", BOOL, OUT LPCRITICAL_SECTION lpCriticalSection, IN DWORD dwSpinCount, IN DWORD flags)
 MAKE_FUNC_BEGIN(InitializeCriticalSectionEx, lpCriticalSection, dwSpinCount, flags) {
+	DEBUG_LOG("KERNEL32 InitializeCriticalSectionEx: START\r\n");
 	NTSTATUS Status;
 
     /* Initialize the critical section */
@@ -699,16 +768,19 @@ MAKE_FUNC_BEGIN(InitializeCriticalSectionEx, lpCriticalSection, dwSpinCount, fla
     if (!NT_SUCCESS(Status)) {
 		//BaseSetLastNTError(Status);
 		SetLastError(Status);
+		DEBUG_LOG("KERNEL32 InitializeCriticalSectionEx: END (1)\r\n");
         return FALSE;
     }
 
     /* Success */
+	DEBUG_LOG("KERNEL32 InitializeCriticalSectionEx: END (2)\r\n");
     return TRUE;
 }
 MAKE_FUNC_END
 
 MAKE_FUNC_READY(LeaveCriticalSection, Is2kOrHigher_98MENT, "KERNEL32.DLL", NTSTATUS, PRTL_CRITICAL_SECTION CriticalSection)
 MAKE_FUNC_BEGIN(LeaveCriticalSection, CriticalSection) {
+	DEBUG_LOG("KERNEL32 LeaveCriticalSection: START\r\n");
 	if (--CriticalSection->RecursionCount) {
 		/* Someone still owns us, but we are free. This needs to be done atomically. */
 		InterlockedDecrement(&CriticalSection->LockCount);
@@ -729,29 +801,34 @@ MAKE_FUNC_BEGIN(LeaveCriticalSection, CriticalSection) {
 	}
 
 	/* Sucessful! */
+	DEBUG_LOG("KERNEL32 LeaveCriticalSection: END\r\n");
 	return 1;
 }
 MAKE_FUNC_END
 
 MAKE_FUNC_READY(EnterCriticalSection, Is2kOrHigher_98MENT, "KERNEL32.DLL", NTSTATUS, PRTL_CRITICAL_SECTION CriticalSection)
 MAKE_FUNC_BEGIN(EnterCriticalSection, CriticalSection) {
+	DEBUG_LOG("KERNEL32 EnterCriticalSection: START\r\n");
 	HANDLE Thread = (HANDLE)NtCurrentTeb()->ClientId.UniqueThread;  
-  if (InterlockedIncrement(&CriticalSection->LockCount) != 0) {  
-     if (Thread == CriticalSection->OwningThread) {  
-       CriticalSection->RecursionCount++;  
-       return 1;
-     }
-	 //RtlpWaitForCriticalSection(CriticalSection);  
-  }  
-   CriticalSection->OwningThread = Thread;  
-   CriticalSection->RecursionCount = 1;  
-   return 1;
+	if (InterlockedIncrement(&CriticalSection->LockCount) != 0) {  
+		if (Thread == CriticalSection->OwningThread) {  
+			CriticalSection->RecursionCount++;  
+			DEBUG_LOG("KERNEL32 EnterCriticalSection: END (1)\r\n");
+			return 1;
+		}
+		//RtlpWaitForCriticalSection(CriticalSection);  
+	}  
+	CriticalSection->OwningThread = Thread;  
+	CriticalSection->RecursionCount = 1;  
+	DEBUG_LOG("KERNEL32 EnterCriticalSection: END (2)\r\n");
+	return 1;
 }  
 MAKE_FUNC_END
 
-
 MAKE_FUNC_READY(GetCurrentProcess, Is2kOrHigher_98MENT, "KERNEL32.DLL", HANDLE, VOID)
 MAKE_FUNC_BEGIN(GetCurrentProcess, ) {
+	DEBUG_LOG("KERNEL32 GetCurrentProcess: START\r\n");
+	DEBUG_LOG("KERNEL32 GetCurrentProcess: END\r\n");
 	//return (HANDLE)((HANDLE)-1);
 	return (HANDLE)~(ULONG_PTR)0;
 }
@@ -760,12 +837,14 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(SetUnhandledExceptionFilter, Is2kOrHigher_98MENT, "KERNEL32.DLL", LPTOP_LEVEL_EXCEPTION_FILTER, IN LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter)
 MAKE_FUNC_BEGIN(SetUnhandledExceptionFilter, lpTopLevelExceptionFilter) {
+	DEBUG_LOG("KERNEL32 SetUnhandledExceptionFilter: START\r\n");
 	LPTOP_LEVEL_EXCEPTION_FILTER GlobalTopLevelExceptionFilter;
 	PVOID EncodedPointer, EncodedOldPointer;
 
     EncodedPointer = _EncodePointer(lpTopLevelExceptionFilter);
     EncodedOldPointer = InterlockedExchangePointer((PVOID*)&GlobalTopLevelExceptionFilter,
                                             EncodedPointer);
+	DEBUG_LOG("KERNEL32 SetUnhandledExceptionFilter: END\r\n");
     return (LPTOP_LEVEL_EXCEPTION_FILTER)_DecodePointer(EncodedOldPointer);
 }
 MAKE_FUNC_END
@@ -773,6 +852,7 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(UnhandledExceptionFilter, Is2kOrHigher_98MENT, "KERNEL32.DLL", LONG, IN PEXCEPTION_POINTERS ExceptionInfo)
 MAKE_FUNC_BEGIN(UnhandledExceptionFilter, ExceptionInfo) {
+	DEBUG_LOG("KERNEL32 UnhandledExceptionFilter: NOT_IMPLEMENTED\r\n");
 	return EXCEPTION_CONTINUE_EXECUTION;
 }
 MAKE_FUNC_END
@@ -780,8 +860,10 @@ MAKE_FUNC_END
 
 MAKE_FUNC_READY(LoadLibraryExW, Is2kOrHigher_98MENT, "KERNEL32.DLL", HMODULE, LPCWSTR libnameW, HANDLE hfile, DWORD flags)
 MAKE_FUNC_BEGIN(LoadLibraryExW, libnameW, hfile, flags) {
+	DEBUG_LOG("KERNEL32 LoadLibraryExW: START\r\n");
 	//LoadLibraryEx(libnameW, hfile, flags);
 	//return LoadLibraryExA((LPCSTR)libnameW, hfile, flags);
+	DEBUG_LOG("KERNEL32 LoadLibraryExW: END\r\n");
 	return LoadLibrary(libnameW);
 	//return LoadLibraryA((LPCSTR)libnameW);
 }

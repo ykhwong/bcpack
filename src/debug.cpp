@@ -22,17 +22,19 @@
 #include "common.h"
 #include "debug.h"
 
+#define BUFSIZE 10240
+
 void DEBUG_LOG(char Str[]) {
 #if DEBUG_LOGLVL
 	/* Workaround was added because FILE_APPEND_DATA may not work for WriteFile on Win9x */
 	HANDLE hLogFile_readonly;
 	HANDLE hLogFile;
 	char logfile[] = "bcpack_log.txt";
-	char inBuffer[4096] = "\0";
+	char inBuffer[BUFSIZE] = "";
 	DWORD nBytesRead;
 
 	hLogFile_readonly = CreateFileA(logfile, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	bool bResult = ReadFile(hLogFile_readonly, &inBuffer, 4096, &nBytesRead, NULL) ; 
+	bool bResult = ReadFile(hLogFile_readonly, &inBuffer, BUFSIZE, &nBytesRead, NULL) ;
 	if (bResult) {
 		strcat(inBuffer, Str);
 	} else {

@@ -23,6 +23,41 @@
 #if _WIN64
 #else
 
+/* SpinCount start */
+static BOOLEAN RtlpCritSectInitialized = FALSE;
+static RTL_CRITICAL_SECTION RtlCriticalSectionLock;
+static BOOLEAN RtlpDebugInfoFreeList[64];
+static RTL_CRITICAL_SECTION_DEBUG RtlpStaticDebugInfo[64];
+static LIST_ENTRY RtlCriticalSectionList;
+PVOID FrLdrDefaultHeap;
+
+typedef struct _BLOCK_DATA {
+    ULONG_PTR Flink:32;
+    ULONG_PTR Blink:32;
+} BLOCK_DATA, *PBLOCK_DATA;
+
+typedef struct _HEAP_BLOCK {
+    USHORT Size;
+    USHORT PreviousSize;
+    ULONG Tag;
+    BLOCK_DATA Data[];
+} HEAP_BLOCK, *PHEAP_BLOCK;
+
+typedef struct _HEAP {
+    SIZE_T MaximumSize;
+    SIZE_T CurrentAllocBytes;
+    SIZE_T MaxAllocBytes;
+    ULONG NumAllocs;
+    ULONG NumFrees;
+    SIZE_T LargestAllocation;
+    ULONGLONG AllocationTime;
+    ULONGLONG FreeTime;
+    ULONG_PTR TerminatingBlock;
+    HEAP_BLOCK Blocks;
+} HEAP, *PHEAP;
+
+/* SpinCount end */
+
 typedef struct _KSYSTEM_TIME {
 	ULONG LowPart;
 	LONG High1Time;
@@ -167,6 +202,210 @@ static PWCHAR _FilenameA2W(LPCSTR NameA, BOOL alloc) {
 }
 #endif
 
+static VOID FrLdrHeapInsertFreeList(
+    PHEAP Heap,
+    PHEAP_BLOCK FreeBlock)
+{
+    PHEAP_BLOCK ListHead, NextBlock;
+    //ASSERT(FreeBlock->Tag == 0);
+
+    /* Terminating block serves as free list head */
+    ListHead = &Heap->Blocks + Heap->TerminatingBlock;
+
+    for (NextBlock = &Heap->Blocks + ListHead->Data[0].Flink;
+         NextBlock < FreeBlock;
+         NextBlock = &Heap->Blocks + NextBlock->Data[0].Flink);
+
+    FreeBlock->Data[0].Flink = NextBlock - &Heap->Blocks;
+    FreeBlock->Data[0].Blink = NextBlock->Data[0].Blink;
+    NextBlock->Data[0].Blink = FreeBlock - &Heap->Blocks;
+    NextBlock = &Heap->Blocks + FreeBlock->Data[0].Blink;
+    NextBlock->Data[0].Flink = FreeBlock - &Heap->Blocks;
+}
+
+static VOID FrLdrHeapRemoveFreeList(
+    PHEAP Heap,
+    PHEAP_BLOCK Block)
+{
+    PHEAP_BLOCK Previous, Next;
+
+    Next = &Heap->Blocks + Block->Data[0].Flink;
+    Previous = &Heap->Blocks + Block->Data[0].Blink;
+    //ASSERT((Next->Tag == 0) || (Next->Tag == 'dnE#'));
+    //ASSERT(Next->Data[0].Blink == Block - &Heap->Blocks);
+    //ASSERT((Previous->Tag == 0) || (Previous->Tag == 'dnE#'));
+    //ASSERT(Previous->Data[0].Flink == Block - &Heap->Blocks);
+
+    Next->Data[0].Blink = Previous - &Heap->Blocks;
+    Previous->Data[0].Flink = Next - &Heap->Blocks;
+}
+
+static PVOID FrLdrHeapAllocateEx(
+    PVOID HeapHandle,
+    SIZE_T ByteSize,
+    ULONG Tag)
+{
+    PHEAP Heap = (PHEAP)HeapHandle;
+    PHEAP_BLOCK Block, NextBlock;
+    USHORT BlockSize, Remaining;
+#if DBG && !defined(_M_ARM)
+    ULONGLONG Time = __rdtsc();
+#endif
+
+#ifdef FREELDR_HEAP_VERIFIER
+    /* Verify the heap */
+    FrLdrHeapVerify(HeapHandle);
+
+    /* Add space for a size field and 2 redzones */
+    ByteSize += REDZONE_ALLOCATION;
+#endif
+
+    /* Check if the allocation is too large */
+    if ((ByteSize +  sizeof(HEAP_BLOCK)) > USHRT_MAX * sizeof(HEAP_BLOCK))
+    {
+        //ERR("HEAP: Allocation of 0x%lx bytes too large\n", ByteSize);
+        return NULL;
+    }
+
+    /* We need a proper tag */
+    if (Tag == 0) Tag = 'enoN';
+
+    /* Calculate alloc size */
+    BlockSize = (USHORT)((ByteSize + sizeof(HEAP_BLOCK) - 1) / sizeof(HEAP_BLOCK));
+
+    /* Walk the free block list */
+    Block = &Heap->Blocks + Heap->TerminatingBlock;
+    for (Block = &Heap->Blocks + Block->Data[0].Flink;
+         Block->Size != 0;
+         Block = &Heap->Blocks + Block->Data[0].Flink)
+    {
+        //ASSERT(Block->Tag == 0);
+
+        /* Continue, if its too small */
+        if (Block->Size < BlockSize) continue;
+
+        /* This block is just fine, use it */
+        Block->Tag = Tag;
+
+        /* Remove this entry from the free list */
+        FrLdrHeapRemoveFreeList(Heap, Block);
+
+        /* Calculate the remaining size */
+        Remaining = Block->Size - BlockSize;
+
+        /* Check if the remaining space is large enough for a new block */
+        if (Remaining > 1)
+        {
+            /* Make the allocated block as large as necessary */
+            Block->Size = BlockSize;
+
+            /* Get pointer to the new block */
+            NextBlock = Block + 1 + BlockSize;
+
+            /* Make it a free block */
+            NextBlock->Tag = 0;
+            NextBlock->Size = Remaining - 1;
+            NextBlock->PreviousSize = BlockSize;
+            BlockSize = NextBlock->Size;
+            FrLdrHeapInsertFreeList(Heap, NextBlock);
+
+            /* Advance to the next block */
+            NextBlock = NextBlock + 1 + BlockSize;
+        }
+        else
+        {
+            /* Not enough left, use the full block */
+            BlockSize = Block->Size;
+
+            /* Get the next block */
+            NextBlock = Block + 1 + BlockSize;
+        }
+
+        /* Update the next blocks back link */
+        NextBlock->PreviousSize = BlockSize;
+
+        /* Update heap usage */
+        Heap->NumAllocs++;
+        Heap->CurrentAllocBytes += Block->Size * sizeof(HEAP_BLOCK);
+        Heap->MaxAllocBytes = max(Heap->MaxAllocBytes, Heap->CurrentAllocBytes);
+        Heap->LargestAllocation = max(Heap->LargestAllocation,
+                                      Block->Size * sizeof(HEAP_BLOCK));
+//#if DBG && !defined(_M_ARM)
+//        Heap->AllocationTime += (__rdtsc() - Time);
+//#endif
+        //TRACE("HeapAllocate(%p, %ld, %.4s) -> return %p\n",
+        //      HeapHandle, ByteSize, &Tag, Block->Data);
+
+        /* HACK: zero out the allocation */
+        RtlZeroMemory(Block->Data, Block->Size * sizeof(HEAP_BLOCK));
+
+#ifdef FREELDR_HEAP_VERIFIER
+        /* Write size and redzones */
+        *REDZONE_SIZE(Block) = ByteSize - REDZONE_ALLOCATION;
+        *REDZONE_LOW(Block) = REDZONE_MARK;
+        *REDZONE_HI(Block) = REDZONE_MARK;
+
+        /* Allocation starts after size field and redzone */
+        return (PUCHAR)Block->Data + REDZONE_LOW_OFFSET;
+#endif
+        /* Return pointer to the data */
+        return Block->Data;
+    }
+
+    /* We found nothing */
+    //WARN("HEAP: nothing suitable found for 0x%lx bytes\n", ByteSize);
+    return NULL;
+}
+
+static PVOID NTAPI RtlAllocateHeap(
+    IN PVOID HeapHandle,
+    IN ULONG Flags,
+    IN SIZE_T Size) {
+    PVOID ptr;
+
+    ptr = FrLdrHeapAllocateEx(FrLdrDefaultHeap, Size, ' ltR');
+    if (ptr && (Flags & HEAP_ZERO_MEMORY))
+    {
+        RtlZeroMemory(ptr, Size);
+    }
+
+    return ptr;
+}
+
+static PRTL_CRITICAL_SECTION_DEBUG NTAPI RtlpAllocateDebugInfo(VOID) {
+      ULONG i;
+  
+      /* Try to allocate from our buffer first */
+      for (i = 0; i < 64; i++)
+      {
+          /* Check if Entry is free */
+          if (!RtlpDebugInfoFreeList[i])
+          {
+              /* Mark entry in use */
+              RtlpDebugInfoFreeList[i] = TRUE;
+  
+              /* Use free entry found */
+              return &RtlpStaticDebugInfo[i];
+          }
+      }
+  
+      /* We are out of static buffer, allocate dynamic */
+      return (PRTL_CRITICAL_SECTION_DEBUG)RtlAllocateHeap(GetProcessHeap(), // RtlGetProcessHeap
+                             0,
+                             sizeof(RTL_CRITICAL_SECTION_DEBUG));
+  }
+
+#define InsertTailList(ListHead,Entry) {\
+    PLIST_ENTRY _EX_Blink;\
+    PLIST_ENTRY _EX_ListHead;\
+    _EX_ListHead = (ListHead);\
+    _EX_Blink = _EX_ListHead->Blink;\
+    (Entry)->Flink = _EX_ListHead;\
+    (Entry)->Blink = _EX_Blink;\
+    _EX_Blink->Flink = (Entry);\
+    _EX_ListHead->Blink = (Entry);\
+    }
+
 static NTSTATUS NTAPI _RtlInitializeCriticalSectionAndSpinCount(PRTL_CRITICAL_SECTION CriticalSection, ULONG SpinCount) {
 	//PRTL_CRITICAL_SECTION_DEBUG CritcalSectionDebugData;
 
@@ -174,28 +413,31 @@ static NTSTATUS NTAPI _RtlInitializeCriticalSectionAndSpinCount(PRTL_CRITICAL_SE
 	CriticalSection->LockCount = -1;
 	CriticalSection->RecursionCount = 0;
 	CriticalSection->OwningThread = 0;
-
 	//CriticalSection->SpinCount = (NtCurrentPeb()->NumberOfProcessors > 1) ? SpinCount : 0;
 	CriticalSection->SpinCount = 0;
 	CriticalSection->LockSemaphore = 0;
 
-#if 0
 	/* Allocate the Debug Data */
-	CritcalSectionDebugData = RtlpAllocateDebugInfo();
+	//DEBUG_LOG("KERNEL32 RtlInitializeCriticalSectionAndSpinCount: D1\r\n");
+	//CritcalSectionDebugData = RtlpAllocateDebugInfo();
+	//DEBUG_LOG("KERNEL32 RtlInitializeCriticalSectionAndSpinCount: D2\r\n");
 
-	if (!CritcalSectionDebugData)
-	{
+	//if (!CritcalSectionDebugData)
+	//{
 		/* This is bad! */
-		return STATUS_NO_MEMORY;
-	}
+	//	DEBUG_LOG("KERNEL32 RtlInitializeCriticalSectionAndSpinCount: END (1)\r\n");
+	//	return STATUS_NO_MEMORY;
+	//}
 
 	/* Set it up */
-	CritcalSectionDebugData->Type = RTL_CRITSECT_TYPE;
-	CritcalSectionDebugData->ContentionCount = 0;
-	CritcalSectionDebugData->EntryCount = 0;
-	CritcalSectionDebugData->CriticalSection = CriticalSection;
-	CritcalSectionDebugData->Flags = 0;
-	CriticalSection->DebugInfo = CritcalSectionDebugData;
+	//CritcalSectionDebugData->Type = 0;
+	//CritcalSectionDebugData->ContentionCount = 0;
+	//CritcalSectionDebugData->EntryCount = 0;
+	//CritcalSectionDebugData->CriticalSection = CriticalSection;
+	//CritcalSectionDebugData->Flags = 0;
+	//DEBUG_LOG("KERNEL32 RtlInitializeCriticalSectionAndSpinCount: D3\r\n");
+	//CriticalSection->DebugInfo = CritcalSectionDebugData;
+	//DEBUG_LOG("KERNEL32 RtlInitializeCriticalSectionAndSpinCount: D4\r\n");
 
 	/*
 	* Add it to the List of Critical Sections owned by the process.
@@ -204,19 +446,18 @@ static NTSTATUS NTAPI _RtlInitializeCriticalSectionAndSpinCount(PRTL_CRITICAL_SE
 	*/
 	if ((CriticalSection != &RtlCriticalSectionLock) && (RtlpCritSectInitialized)) {
 		/* Protect List */
-		RtlEnterCriticalSection(&RtlCriticalSectionLock);
+		EnterCriticalSection(&RtlCriticalSectionLock);
 
 		/* Add this one */
-		InsertTailList(&RtlCriticalSectionList, &CritcalSectionDebugData->ProcessLocksList);
+		//InsertTailList(&RtlCriticalSectionList, &CritcalSectionDebugData->ProcessLocksList);
 
 		/* Unprotect */
-		RtlLeaveCriticalSection(&RtlCriticalSectionLock);
+		LeaveCriticalSection(&RtlCriticalSectionLock);
 	}
 	else {
 		/* Add it directly */
-		InsertTailList(&RtlCriticalSectionList, &CritcalSectionDebugData->ProcessLocksList);
+		//InsertTailList(&RtlCriticalSectionList, &CritcalSectionDebugData->ProcessLocksList);
 	}
-#endif
 	return 1;
 }
 
@@ -395,8 +636,7 @@ MAKE_FUNC_BEGIN(InitializeCriticalSectionAndSpinCount, lpCriticalSection, dwSpin
 	NTSTATUS Status;
 
 	/* Initialize the critical section */
-	Status = _RtlInitializeCriticalSectionAndSpinCount(lpCriticalSection,
-		dwSpinCount);
+	Status = _RtlInitializeCriticalSectionAndSpinCount(lpCriticalSection, dwSpinCount);
 	if (!NT_SUCCESS(Status)) {
 		/* Set failure code */
 		//BaseSetLastNTError(Status);

@@ -88,8 +88,8 @@ PathRemoveFileSpecA,4,win95,shlwapi=1
 # Win9x-specific (Experimental)
 EnterCriticalSection,4,win98,kernel32=1
 LeaveCriticalSection,4,win98,kernel32=1
-GetCurrentProcess,0,win98,kernel32=1
-SetUnhandledExceptionFilter,4,win98,kernel32=1
-UnhandledExceptionFilter,4,win98,kernel32=1
-InitializeCriticalSectionEx,12,win98,kernel32=1
-LoadLibraryExW,12,win98,kernel32=1
+GetCurrentProcess,0,win98,kernel32=0
+SetUnhandledExceptionFilter,4,win98,kernel32=0
+UnhandledExceptionFilter,4,win98,kernel32=0
+InitializeCriticalSectionEx,12,win98,kernel32=0
+LoadLibraryExW,12,win98,kernel32=0

@@ -1141,7 +1141,6 @@ extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD 
 	DEBUG_LOG("KERNEL32 LoadLibraryExW: START1\r\n");
 	if (!LoadLibraryExW_p) {
 		DEBUG_LOG("KERNEL32 LoadLibraryExW: D1\r\n");
-		HMODULE mod;
 		HMODULE mod = GetModuleHandle(_T("KERNEL32"));
 		if (!mod) {
 			mod=LoadLibraryA("KERNEL32.DLL");

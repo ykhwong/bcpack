@@ -88,7 +88,7 @@ common section contains useful options for the compatibility details.
  FORCED_DUMMY={0|1}              Makes every functions dummy
 ```
 
-***OTHER SECTIONS***
+**OTHER SECTIONS**
 
 ```
  [win2k_func]      : Necessary functions for Windows 2000

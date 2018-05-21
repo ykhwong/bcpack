@@ -52,8 +52,12 @@ MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(GetMenuBarInfo, Is2kOrHigher_98MENT, "USER32.DLL", BOOL, _In_ HWND hwnd, _In_ LONG idObject, _In_ LONG idItem, _Inout_ PMENUBARINFO pmb)
-MAKE_FUNC_DUMMY(GetMenuBarInfo, true, hwnd, idObject, idItem, pmb)
-
+MAKE_FUNC_BEGIN(GetMenuBarInfo, hwnd, idObject, idItem, pmb) {
+	DEBUG_LOG("SHLWAPI GetMenuBarInfo: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return true;
+}
+MAKE_FUNC_END
 
 
 #endif // ADDITIONAL_COMP

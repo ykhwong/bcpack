@@ -22,7 +22,7 @@
 #include "common.h"
 #include "debug.h"
 
-#define BUFSIZE 10240
+#define BUFSIZE 200000
 
 void DEBUG_LOG(char Str[]) {
 #if DEBUG_LOGLVL
@@ -34,20 +34,20 @@ void DEBUG_LOG(char Str[]) {
 	DWORD nBytesRead;
 
 	hLogFile_readonly = CreateFileA(logfile, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	bool bResult = ReadFile(hLogFile_readonly, &inBuffer, BUFSIZE, &nBytesRead, NULL) ;
-	if (bResult) {
-		strcat(inBuffer, Str);
+	if (hLogFile_readonly != INVALID_HANDLE_VALUE) {
+		if (ReadFile(hLogFile_readonly, &inBuffer, BUFSIZE, &nBytesRead, NULL)) {
+			strcat(inBuffer, Str);
+		}
+		CloseHandle(hLogFile_readonly);
 	} else {
 		strcpy(inBuffer, Str);
 	}
-	CloseHandle(hLogFile_readonly);
 
 	hLogFile = CreateFileA(logfile, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
 	if (hLogFile != INVALID_HANDLE_VALUE) {
 		DWORD dwBytesWritten = 0;
 		WriteFile(hLogFile, inBuffer, strlen(inBuffer), &dwBytesWritten, NULL);
+		CloseHandle(hLogFile);
 	}
-	CloseHandle(hLogFile);
 #endif
 }

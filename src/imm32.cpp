@@ -25,6 +25,7 @@
 MAKE_FUNC_READY(ImmDisableTextFrameService, IsXpOrHigher_2K, "IMM32.DLL", BOOL, DWORD idThread)
 MAKE_FUNC_BEGIN(ImmDisableTextFrameService, idThread) {
 	DEBUG_LOG("IMM32 ImmDisableTextFrameService: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 	return TRUE; // FIX ME
 }
 MAKE_FUNC_END
@@ -33,6 +34,7 @@ MAKE_FUNC_END
 MAKE_FUNC_READY(ImmEnumInputContext, IsXpOrHigher_2K, "IMM32.DLL", BOOL, DWORD idThread, IMCENUMPROC lpfn, LPARAM lParam)
 MAKE_FUNC_BEGIN(ImmEnumInputContext, idThread, lpfn, lParam) {
 	DEBUG_LOG("IMM32 ImmEnumInputContext: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 	return FALSE; // FIX ME
 }
 MAKE_FUNC_END
@@ -41,6 +43,7 @@ MAKE_FUNC_END
 MAKE_FUNC_READY(ImmGetHotKey, IsXpOrHigher_2K, "IMM32.DLL", BOOL, DWORD hotkey, UINT *modifiers, UINT *key, HKL hkl)
 MAKE_FUNC_BEGIN(ImmGetHotKey, hotkey, modifiers, key, hkl) {
 	DEBUG_LOG("IMM32 ImmGetHotKey: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 	return FALSE; //FIX ME
 }
 MAKE_FUNC_END

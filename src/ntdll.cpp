@@ -107,11 +107,20 @@ MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(RtlAnsiStringToUnicodeString, Is98OrHigher_95, "NTDLL.DLL", NTSTATUS, IN OUT PUNICODE_STRING UniDest, IN PANSI_STRING AnsiSource, IN BOOLEAN AllocateDestinationString)
-MAKE_FUNC_DUMMY(RtlAnsiStringToUnicodeString, ((NTSTATUS)0xC0000002), UniDest, AnsiSource, AllocateDestinationString)
-
+MAKE_FUNC_BEGIN(RtlAnsiStringToUnicodeString, UniDest, AnsiSource, AllocateDestinationString) {
+	DEBUG_LOG("NTDLL RtlAnsiStringToUnicodeString: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return ((NTSTATUS)0xC0000002);
+}
+MAKE_FUNC_END
 
 MAKE_FUNC_READY(NtQuerySystemInformation, Is98OrHigher_95, "NTDLL.DLL", NTSTATUS, _In_ SYSTEM_INFORMATION_CLASS SystemInformationClass, _Inout_   PVOID                    SystemInformation, _In_      ULONG                    SystemInformationLength,	_Out_opt_ PULONG                   ReturnLength)
-MAKE_FUNC_DUMMY(NtQuerySystemInformation, ((NTSTATUS)0xC0000002), SystemInformationClass, SystemInformation, SystemInformationLength, ReturnLength)
+MAKE_FUNC_BEGIN(NtQuerySystemInformation, SystemInformationClass, SystemInformation, SystemInformationLength, ReturnLength) {
+	DEBUG_LOG("NTDLL NtQuerySystemInformation: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return ((NTSTATUS)0xC0000002);
+}
+MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(GetNativeSystemInfo, IsXpOrHigher_2K, "NTDLL.DLL", VOID, LPSYSTEM_INFO lpSystemInfo)

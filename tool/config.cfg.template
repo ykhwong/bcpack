@@ -92,4 +92,5 @@ GetCurrentProcess,0,win98,kernel32=0
 SetUnhandledExceptionFilter,4,win98,kernel32=0
 UnhandledExceptionFilter,4,win98,kernel32=0
 InitializeCriticalSectionEx,12,win98,kernel32=0
-LoadLibraryExW,12,win98,kernel32=0
+LoadLibraryExW,12,win98,kernel32=1
+LoadLibraryW,4,win98,kernel32=0

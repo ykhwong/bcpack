@@ -592,13 +592,21 @@ MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(FindFirstFileExA, Is98OrHigher_95, "KERNEL32.DLL", HANDLE, IN LPCSTR lpFileName, IN FINDEX_INFO_LEVELS fInfoLevelId, OUT LPVOID lpFindFileData, IN FINDEX_SEARCH_OPS fSearchOp, LPVOID lpSearchFilter, IN DWORD dwAdditionalFlags)
-MAKE_FUNC_DUMMY(FindFirstFileExA, INVALID_HANDLE_VALUE, lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags)
-
-
+MAKE_FUNC_BEGIN(FindFirstFileExA, lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags) {
+	DEBUG_LOG("KERNEL32 FindFirstFileExA: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return INVALID_HANDLE_VALUE;
+}
+MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(FindFirstFileExW, Is98OrHigher_95, "KERNEL32.DLL", HANDLE, IN LPCWSTR lpFileName, IN FINDEX_INFO_LEVELS fInfoLevelId, OUT LPVOID lpFindFileData, IN FINDEX_SEARCH_OPS fSearchOp, LPVOID lpSearchFilter, IN DWORD dwAdditionalFlags)
-MAKE_FUNC_DUMMY(FindFirstFileExW, INVALID_HANDLE_VALUE, lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags)
+MAKE_FUNC_BEGIN(FindFirstFileExW, lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags) {
+	DEBUG_LOG("KERNEL32 FindFirstFileExW: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return INVALID_HANDLE_VALUE;
+}
+MAKE_FUNC_END
 
 
 #define cpuid(func,a,b,c,d)\
@@ -613,17 +621,20 @@ MAKE_FUNC_DUMMY(FindFirstFileExW, INVALID_HANDLE_VALUE, lpFileName, fInfoLevelId
 MAKE_FUNC_READY(IsProcessorFeaturePresent, Is98OrHigher_95, "KERNEL32.DLL", BOOL, IN DWORD ProcessorFeature)
 MAKE_FUNC_BEGIN(IsProcessorFeaturePresent, ProcessorFeature) {
 	DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: START\r\n");
-	if (ProcessorFeature >= 64) return FALSE;
+	if (ProcessorFeature >= 64) {
+		DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: END (1)\r\n");
+		return FALSE;
+	}
 	if (ProcessorFeature == PF_XMMI64_INSTRUCTIONS_AVAILABLE) {
 		uintptr_t a, b, c, d;
 		cpuid(1, a, b, c, d);
 		if ((d >> 26) & 1) {
-			DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: END (1)\r\n");
+			DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: END (2)\r\n");
 			return true;
 		}
 	}
 	//return ((BOOL)(SHARED_DATA->ProcessorFeatures[ProcessorFeature]));
-	DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: END (2)\r\n");
+	DEBUG_LOG("KERNEL32 IsProcessorFeaturePresent: END (3)\r\n");
 	return false;
 }
 MAKE_FUNC_END
@@ -652,7 +663,12 @@ MAKE_FUNC_BEGIN(InitializeCriticalSectionAndSpinCount, lpCriticalSection, dwSpin
 MAKE_FUNC_END
 
 MAKE_FUNC_READY(GetFileAttributesExW, Is98OrHigher_95, "KERNEL32.DLL", BOOL, LPCWSTR name, GET_FILEEX_INFO_LEVELS level, LPVOID ptr)
-MAKE_FUNC_DUMMY(GetFileAttributesExW, TRUE, name, level, ptr)
+MAKE_FUNC_BEGIN(GetFileAttributesExW, name, level, ptr) {
+	DEBUG_LOG("KERNEL32 GetFileAttributesExW: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return TRUE;
+}
+MAKE_FUNC_END
 #endif // WIN95_COMP
 
 #if DEBUG_COMP
@@ -861,6 +877,7 @@ MAKE_FUNC_BEGIN(GetFileSizeEx, file, fsize) {
 	//	return FALSE;
 	//fsize->QuadPart = _ftell((FILE*)file);
 	DEBUG_LOG("KERNEL32 GetFileSizeEx: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 	return TRUE;
 }
 MAKE_FUNC_END
@@ -905,7 +922,12 @@ MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(GetLocaleInfoW, Is2kOrHigher_98MENT, "KERNEL32.DLL", INT, LCID lcid, LCTYPE lctype, LPWSTR buffer, INT len)
-MAKE_FUNC_DUMMY(GetLocaleInfoW, 1, lcid, lctype, buffer, len)
+MAKE_FUNC_BEGIN(GetLocaleInfoW, lcid, lctype, buffer, len) {
+	DEBUG_LOG("KERNEL32 GetLocaleInfoW: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+	return 1;
+}
+MAKE_FUNC_END
 
 
 MAKE_FUNC_READY(GetStringTypeW, Is2kOrHigher_98MENT, "KERNEL32.DLL", BOOL, DWORD type, LPCWSTR src, INT count, LPWORD chartype)
@@ -1062,7 +1084,7 @@ MAKE_FUNC_BEGIN(EnterCriticalSection, CriticalSection) {
 	CriticalSection->RecursionCount = 1;  
 	DEBUG_LOG("KERNEL32 EnterCriticalSection: END (2)\r\n");
 	return 1;
-}  
+}
 MAKE_FUNC_END
 
 MAKE_FUNC_READY(GetCurrentProcess, Is2kOrHigher_98MENT, "KERNEL32.DLL", HANDLE, VOID)
@@ -1093,19 +1115,83 @@ MAKE_FUNC_END
 MAKE_FUNC_READY(UnhandledExceptionFilter, Is2kOrHigher_98MENT, "KERNEL32.DLL", LONG, IN PEXCEPTION_POINTERS ExceptionInfo)
 MAKE_FUNC_BEGIN(UnhandledExceptionFilter, ExceptionInfo) {
 	DEBUG_LOG("KERNEL32 UnhandledExceptionFilter: NOT_IMPLEMENTED\r\n");
+	SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
 	return EXCEPTION_CONTINUE_EXECUTION;
 }
 MAKE_FUNC_END
 
 
-MAKE_FUNC_READY(LoadLibraryExW, Is2kOrHigher_98MENT, "KERNEL32.DLL", HMODULE, LPCWSTR libnameW, HANDLE hfile, DWORD flags)
-MAKE_FUNC_BEGIN(LoadLibraryExW, libnameW, hfile, flags) {
+#define BUFFER_SIZE 100
+#define ARRAY_SIZE(x) (sizeof((x))/sizeof((x)[0]))
+typedef HMODULE(WINAPI *pLoadLibraryExW)(LPCWSTR libnameW, HANDLE hfile, DWORD flags);
+extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD flags) {
 	DEBUG_LOG("KERNEL32 LoadLibraryExW: START\r\n");
-	//LoadLibraryEx(libnameW, hfile, flags);
-	//return LoadLibraryExA((LPCSTR)libnameW, hfile, flags);
-	DEBUG_LOG("KERNEL32 LoadLibraryExW: END\r\n");
-	return LoadLibrary(libnameW);
-	//return LoadLibraryA((LPCSTR)libnameW);
+	static pLoadLibraryExW LoadLibraryExW_p = NULL;
+	static const WCHAR *filter_dlls[] = {
+		L"kernel32", L"user32", L"advapi32", L"shell32", L"ws2_32", 
+		L"wtsapi32", L"imm32", L"uxtheme", L"imagehlp", L"hid"
+	};
+	const WCHAR *p, *q, *dll;
+	char data_s[300];
+	char pMBBuffer[BUFFER_SIZE] = ""; 
+	bool loadlib=false;
+	int i;
+	HMODULE temp;
+
+	DEBUG_LOG("KERNEL32 LoadLibraryExW: START1\r\n");
+	if (!LoadLibraryExW_p) {
+		DEBUG_LOG("KERNEL32 LoadLibraryExW: D1\r\n");
+		HMODULE mod;
+		HMODULE mod = GetModuleHandle(_T("KERNEL32"));
+		if (!mod) {
+			mod=LoadLibraryA("KERNEL32.DLL");
+			loadlib=true;
+		}
+		if (mod) {
+			DEBUG_LOG("KERNEL32 LoadLibraryExW: D2\r\n");
+			LoadLibraryExW_p = (pLoadLibraryExW)GetProcAddress(mod, "LoadLibraryExW");
+			if(loadlib) {
+				FreeLibrary(mod);
+			}
+		} else {
+			DEBUG_LOG("KERNEL32 LoadLibraryExW: D3\r\n");
+		}
+	}
+	for(p = dll = libnameW; *p; p++) if(*p == L'\\' || *p == L'/') dll = p + 1;
+	for(i=0; i<ARRAY_SIZE(filter_dlls); i++) {
+		for(p = filter_dlls[i], q = dll;
+		  *p; p++, q++) {
+			if(!*q || towupper(*p) != towupper(*q)) goto nexti;
+		}
+		if(*q && _wcsicmp(L".dll", q) != 0) goto nexti;
+		sprintf(data_s, "KERNEL32: intercepted LoadLibrary(%S) redirecting to %S\r\n", libnameW, filter_dlls[i]);
+		DEBUG_LOG(data_s);
+		temp = LoadLibraryExW_p(filter_dlls[i], hfile, flags);
+		if (temp == NULL) {
+			wcstombs(pMBBuffer, filter_dlls[i], BUFFER_SIZE );
+			temp = LoadLibraryA(pMBBuffer);
+		}
+		DEBUG_LOG("KERNEL32 LoadLibraryExW: END (1)\r\n");
+		return temp;
+		nexti:;
+	}
+
+	sprintf(data_s, "KERNEL32: intercepted LoadLibrary(%S) without redirect\r\n", libnameW);
+	DEBUG_LOG(data_s);
+	temp = LoadLibraryExW_p(libnameW, hfile, flags);
+	if (temp == NULL) {
+		wcstombs(pMBBuffer, libnameW, BUFFER_SIZE );
+		temp = LoadLibraryA(pMBBuffer);
+	}
+	DEBUG_LOG("KERNEL32 LoadLibraryExW: END (2)\r\n");
+	return temp;
+}
+
+MAKE_FUNC_READY(LoadLibraryW, Is2kOrHigher_98MENT, "KERNEL32.DLL", HMODULE, LPCTSTR lpFileName)
+MAKE_FUNC_BEGIN(LoadLibraryW, lpFileName) {
+	DEBUG_LOG("KERNEL32 LoadLibraryW: START\r\n");
+	DEBUG_LOG("KERNEL32 LoadLibraryW: END\r\n");
+	return LoadLibraryExW(lpFileName, 0, 0);
 }
 MAKE_FUNC_END
 

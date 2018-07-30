@@ -1150,7 +1150,7 @@ extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD 
 	!strcmp(origBuffer, "api-ms-win-core-localization-l1-2-1") ||
 	!strcmp(origBuffer, "api-ms-win-appmodel-runtime-l1-1-2")
 	) {
-		char text[] = "Dll1";
+		char text[] = "kernel32";
 		wchar_t wtext[10];
 		mbstowcs(wtext, text, strlen(text)+1);
 		libnameW = wtext;

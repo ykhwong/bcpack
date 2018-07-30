@@ -1,8 +1,8 @@
 #
 # BCPack config file.
 #
-# For more information on the configuration file, please see:
-# https://github.com/ykhwong/bcpack
+# For more information on the configuration file, please see
+# README.md or https://github.com/ykhwong/bcpack
 #
 
 [common]
@@ -91,6 +91,11 @@ LeaveCriticalSection,4,win98,kernel32=1
 GetCurrentProcess,0,win98,kernel32=0
 SetUnhandledExceptionFilter,4,win98,kernel32=0
 UnhandledExceptionFilter,4,win98,kernel32=0
-InitializeCriticalSectionEx,12,win98,kernel32=0
+InitializeCriticalSectionEx,12,win98,kernel32=1
 LoadLibraryExW,12,win98,kernel32=1
 LoadLibraryW,4,win98,kernel32=0
+FlsAlloc,4,win98,kernel32=1
+FlsGetValue,4,win98,kernel32=1
+FlsSetValue,8,win98,kernel32=1
+LCMapStringEx,36,win98,kernel32=1
+GetProcAddress,8,win98,kernel32=0

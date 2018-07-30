@@ -153,7 +153,7 @@ static BOOL _IncLoadCount(HMODULE hMod) {
 
 static PLDR_MODULE WINAPI _GetLdrModule(LPCVOID address) {
 	PLDR_MODULE first_mod, mod;
-	first_mod = mod = (PLDR_MODULE)NtCurrentPeb()->LoaderData->InLoadOrderModuleList.Flink;
+	first_mod = mod = (PLDR_MODULE)NtCurrentPeb()->Ldr->InLoadOrderModuleList.Flink;
 	do {
 		if ((ULONG_PTR)mod->BaseAddress <= (ULONG_PTR)address &&
 			(ULONG_PTR)address < (ULONG_PTR)mod->BaseAddress + mod->SizeOfImage)
@@ -1123,10 +1123,12 @@ MAKE_FUNC_END
 
 #define BUFFER_SIZE 100
 #define ARRAY_SIZE(x) (sizeof((x))/sizeof((x)[0]))
+
 typedef HMODULE(WINAPI *pLoadLibraryExW)(LPCWSTR libnameW, HANDLE hfile, DWORD flags);
 extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD flags) {
-	DEBUG_LOG("KERNEL32 LoadLibraryExW: START\r\n");
+#if 0
 	static pLoadLibraryExW LoadLibraryExW_p = NULL;
+#endif
 	static const WCHAR *filter_dlls[] = {
 		L"kernel32", L"user32", L"advapi32", L"shell32", L"ws2_32", 
 		L"wtsapi32", L"imm32", L"uxtheme", L"imagehlp", L"hid"
@@ -1134,11 +1136,26 @@ extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD 
 	const WCHAR *p, *q, *dll;
 	char data_s[300];
 	char pMBBuffer[BUFFER_SIZE] = ""; 
+	char origBuffer[BUFFER_SIZE] = "";
 	bool loadlib=false;
 	int i;
 	HMODULE temp;
 
-	DEBUG_LOG("KERNEL32 LoadLibraryExW: START1\r\n");
+	wcstombs(origBuffer, libnameW, BUFFER_SIZE );
+	sprintf(data_s, "KERNEL32 LoadLibraryExW: START1 (%s)\r\n", origBuffer);
+	DEBUG_LOG(data_s);
+	if (
+	!strcmp(origBuffer, "api-ms-win-core-synch-l1-2-0") ||
+	!strcmp(origBuffer, "api-ms-win-core-fibers-l1-1-1") ||
+	!strcmp(origBuffer, "api-ms-win-core-localization-l1-2-1") ||
+	!strcmp(origBuffer, "api-ms-win-appmodel-runtime-l1-1-2")
+	) {
+		char text[] = "Dll1";
+		wchar_t wtext[10];
+		mbstowcs(wtext, text, strlen(text)+1);
+		libnameW = wtext;
+	}
+#if 0
 	if (!LoadLibraryExW_p) {
 		DEBUG_LOG("KERNEL32 LoadLibraryExW: D1\r\n");
 		HMODULE mod = GetModuleHandle(_T("KERNEL32"));
@@ -1156,6 +1173,7 @@ extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD 
 			DEBUG_LOG("KERNEL32 LoadLibraryExW: D3\r\n");
 		}
 	}
+#endif
 	for(p = dll = libnameW; *p; p++) if(*p == L'\\' || *p == L'/') dll = p + 1;
 	for(i=0; i<ARRAY_SIZE(filter_dlls); i++) {
 		for(p = filter_dlls[i], q = dll;
@@ -1163,9 +1181,11 @@ extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD 
 			if(!*q || towupper(*p) != towupper(*q)) goto nexti;
 		}
 		if(*q && _wcsicmp(L".dll", q) != 0) goto nexti;
+#if 0
 		sprintf(data_s, "KERNEL32: intercepted LoadLibrary(%S) redirecting to %S\r\n", libnameW, filter_dlls[i]);
 		DEBUG_LOG(data_s);
 		temp = LoadLibraryExW_p(filter_dlls[i], hfile, flags);
+#endif
 		if (temp == NULL) {
 			wcstombs(pMBBuffer, filter_dlls[i], BUFFER_SIZE );
 			temp = LoadLibraryA(pMBBuffer);
@@ -1175,9 +1195,11 @@ extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD 
 		nexti:;
 	}
 
+#if 0
 	sprintf(data_s, "KERNEL32: intercepted LoadLibrary(%S) without redirect\r\n", libnameW);
 	DEBUG_LOG(data_s);
 	temp = LoadLibraryExW_p(libnameW, hfile, flags);
+#endif
 	if (temp == NULL) {
 		wcstombs(pMBBuffer, libnameW, BUFFER_SIZE );
 		temp = LoadLibraryA(pMBBuffer);
@@ -1186,6 +1208,7 @@ extern "C" HMODULE WINAPI _LoadLibraryExW(LPCWSTR libnameW, HANDLE hfile, DWORD 
 	return temp;
 }
 
+
 MAKE_FUNC_READY(LoadLibraryW, Is2kOrHigher_98MENT, "KERNEL32.DLL", HMODULE, LPCTSTR lpFileName)
 MAKE_FUNC_BEGIN(LoadLibraryW, lpFileName) {
 	DEBUG_LOG("KERNEL32 LoadLibraryW: START\r\n");
@@ -1193,6 +1216,790 @@ MAKE_FUNC_BEGIN(LoadLibraryW, lpFileName) {
 	return LoadLibraryExW(lpFileName, 0, 0);
 }
 MAKE_FUNC_END
+
+static VOID NTAPI RtlAcquirePebLock(VOID)
+{
+   PPEB_2K Peb = NtCurrentPeb();
+   EnterCriticalSection(Peb->FastPebLock);
+}
+
+typedef struct _RTL_BITMAP
+{
+    ULONG  SizeOfBitMap;
+    PULONG  Buffer;
+} RTL_BITMAP, *PRTL_BITMAP;
+
+#define _BITCOUNT 32
+#define MAXINDEX 0xFFFFFFFF
+#define RtlFillMemoryUlong(dst, len, val) memset(dst, val, len)
+typedef ULONG BITMAP_INDEX, *PBITMAP_INDEX;
+typedef ULONG BITMAP_BUFFER, *PBITMAP_BUFFER;
+
+VOID
+NTAPI
+RtlClearBits(
+    _In_ PRTL_BITMAP BitMapHeader,
+    _In_range_(0, BitMapHeader->SizeOfBitMap - NumberToClear) BITMAP_INDEX StartingIndex,
+    _In_range_(0, BitMapHeader->SizeOfBitMap - StartingIndex) BITMAP_INDEX NumberToClear)
+{
+    BITMAP_INDEX Bits, Mask;
+    PBITMAP_BUFFER Buffer;
+
+    /* Calculate buffer start and first bit index */
+    Buffer = &BitMapHeader->Buffer[StartingIndex / _BITCOUNT];
+    Bits = StartingIndex & (_BITCOUNT - 1);
+
+    /* Are we unaligned? */
+    if (Bits)
+    {
+        /* Create an inverse mask by shifting MAXINDEX */
+        Mask = MAXINDEX << Bits;
+
+        /* This is what's left in the first ULONG */
+        Bits = _BITCOUNT - Bits;
+
+        /* Even less bits to clear? */
+        if (NumberToClear < Bits)
+        {
+            /* Calculate how many bits are left */
+            Bits -= NumberToClear;
+
+            /* Fixup the mask on the high side */
+            Mask = Mask << Bits >> Bits;
+
+            /* Clear bits and return */
+            *Buffer &= ~Mask;
+            return;
+        }
+
+        /* Clear bits */
+        *Buffer &= ~Mask;
+
+        /* Update buffer and left bits */
+        Buffer++;
+        NumberToClear -= Bits;
+    }
+
+    /* Clear all full ULONGs */
+    RtlFillMemoryUlong(Buffer, NumberToClear >> 3, 0);
+    Buffer += NumberToClear / _BITCOUNT;
+
+    /* Clear what's left */
+    NumberToClear &= (_BITCOUNT - 1);
+    if (NumberToClear != 0)
+    {
+        Mask = MAXINDEX << NumberToClear;
+        *Buffer &= Mask;
+    }
+}
+
+static __inline
+BITMAP_INDEX
+RtlpGetLengthOfRunSet(
+    _In_ PRTL_BITMAP BitMapHeader,
+    _In_ BITMAP_INDEX StartingIndex,
+    _In_ BITMAP_INDEX MaxLength)
+{
+    BITMAP_INDEX InvValue, BitPos, Length;
+    PBITMAP_BUFFER Buffer, MaxBuffer;
+
+    /* If we are already at the end, the length of the run is zero */
+    //ASSERT(StartingIndex <= BitMapHeader->SizeOfBitMap);
+    if (StartingIndex >= BitMapHeader->SizeOfBitMap)
+        return 0;
+
+    /* Calculate positions */
+    Buffer = BitMapHeader->Buffer + StartingIndex / _BITCOUNT;
+    BitPos = StartingIndex & (_BITCOUNT - 1);
+
+    /* Calculate the maximum length */
+    MaxLength = min(MaxLength, BitMapHeader->SizeOfBitMap - StartingIndex);
+    MaxBuffer = Buffer + (BitPos + MaxLength + _BITCOUNT - 1) / _BITCOUNT;
+
+    /* Get the inversed value, clear bits that don't belong to the run */
+    InvValue = ~(*Buffer++) >> BitPos << BitPos;
+
+    /* Skip all set ULONGs */
+    while (InvValue == 0 && Buffer < MaxBuffer)
+    {
+        InvValue = ~(*Buffer++);
+    }
+
+    /* Did we reach the end? */
+    if (InvValue == 0)
+    {
+        /* Yes, return maximum */
+        return MaxLength;
+    }
+
+    /* We hit a clear bit, check how many set bits are left */
+    BitScanForward(&BitPos, InvValue);
+
+    /* Calculate length up to where we read */
+    Length = (ULONG)(Buffer - BitMapHeader->Buffer) * _BITCOUNT - StartingIndex;
+    Length += BitPos - _BITCOUNT;
+
+    /* Make sure we don't go past the last bit */
+    if (Length > BitMapHeader->SizeOfBitMap - StartingIndex)
+        Length = BitMapHeader->SizeOfBitMap - StartingIndex;
+
+    /* Return the result */
+    return Length;
+}
+
+static __inline
+BITMAP_INDEX
+RtlpGetLengthOfRunClear(
+    _In_ PRTL_BITMAP BitMapHeader,
+    _In_ BITMAP_INDEX StartingIndex,
+    _In_ BITMAP_INDEX MaxLength)
+{
+    BITMAP_INDEX Value, BitPos, Length;
+    PBITMAP_BUFFER Buffer, MaxBuffer;
+
+    /* If we are already at the end, the length of the run is zero */
+    //ASSERT(StartingIndex <= BitMapHeader->SizeOfBitMap);
+    if (StartingIndex >= BitMapHeader->SizeOfBitMap)
+        return 0;
+
+    /* Calculate positions */
+    Buffer = BitMapHeader->Buffer + StartingIndex / _BITCOUNT;
+    BitPos = StartingIndex & (_BITCOUNT - 1);
+
+    /* Calculate the maximum length */
+    MaxLength = min(MaxLength, BitMapHeader->SizeOfBitMap - StartingIndex);
+    MaxBuffer = Buffer + (BitPos + MaxLength + _BITCOUNT - 1) / _BITCOUNT;
+
+    /* Clear the bits that don't belong to this run */
+    Value = *Buffer++ >> BitPos << BitPos;
+
+    /* Skip all clear ULONGs */
+    while (Value == 0 && Buffer < MaxBuffer)
+    {
+        Value = *Buffer++;
+    }
+
+    /* Did we reach the end? */
+    if (Value == 0)
+    {
+        /* Return maximum length */
+        return MaxLength;
+    }
+
+    /* We hit a set bit, check how many clear bits are left */
+    BitScanForward(&BitPos, Value);
+
+    /* Calculate length up to where we read */
+    Length = (BITMAP_INDEX)(Buffer - BitMapHeader->Buffer) * _BITCOUNT - StartingIndex;
+    Length += BitPos - _BITCOUNT;
+
+    /* Make sure we don't go past the last bit */
+    if (Length > BitMapHeader->SizeOfBitMap - StartingIndex)
+        Length = BitMapHeader->SizeOfBitMap - StartingIndex;
+
+    /* Return the result */
+    return Length;
+}
+
+BITMAP_INDEX
+NTAPI
+RtlFindClearBits(
+    _In_ PRTL_BITMAP BitMapHeader,
+    _In_ BITMAP_INDEX NumberToFind,
+    _In_ BITMAP_INDEX HintIndex)
+{
+    BITMAP_INDEX CurrentBit, Margin, CurrentLength;
+
+    /* Check for valid parameters */
+    if (!BitMapHeader || NumberToFind > BitMapHeader->SizeOfBitMap)
+    {
+        return MAXINDEX;
+    }
+
+    /* Check if the hint is outside the bitmap */
+    if (HintIndex >= BitMapHeader->SizeOfBitMap) HintIndex = 0;
+
+    /* Check for trivial case */
+    if (NumberToFind == 0)
+    {
+        /* Return hint rounded down to byte margin */
+        return HintIndex & ~7;
+    }
+
+    /* First margin is end of bitmap */
+    Margin = BitMapHeader->SizeOfBitMap;
+
+retry:
+    /* Start with hint index, length is 0 */
+    CurrentBit = HintIndex;
+
+    /* Loop until something is found or the end is reached */
+    while (CurrentBit + NumberToFind < Margin)
+    {
+        /* Search for the next clear run, by skipping a set run */
+        CurrentBit += RtlpGetLengthOfRunSet(BitMapHeader,
+                                            CurrentBit,
+                                            MAXINDEX);
+
+        /* Get length of the clear bit run */
+        CurrentLength = RtlpGetLengthOfRunClear(BitMapHeader,
+                                                CurrentBit,
+                                                NumberToFind);
+
+        /* Is this long enough? */
+        if (CurrentLength >= NumberToFind)
+        {
+            /* It is */
+            return CurrentBit;
+        }
+
+        CurrentBit += CurrentLength;
+    }
+
+    /* Did we start at a hint? */
+    if (HintIndex)
+    {
+        /* Retry at the start */
+        Margin = min(HintIndex + NumberToFind, BitMapHeader->SizeOfBitMap);
+        HintIndex = 0;
+        goto retry;
+    }
+
+    /* Nothing found */
+    return MAXINDEX;
+}
+
+ VOID
+ NTAPI
+ RtlSetBits(
+     _In_ PRTL_BITMAP BitMapHeader,
+     _In_range_(0, BitMapHeader->SizeOfBitMap - NumberToSet) BITMAP_INDEX StartingIndex,
+     _In_range_(0, BitMapHeader->SizeOfBitMap - StartingIndex) BITMAP_INDEX NumberToSet)
+ {
+     BITMAP_INDEX Bits, Mask;
+     PBITMAP_BUFFER Buffer;
+ 
+     //ASSERT(StartingIndex + NumberToSet <= BitMapHeader->SizeOfBitMap);
+ 
+     /* Calculate buffer start and first bit index */
+     Buffer = &BitMapHeader->Buffer[StartingIndex / _BITCOUNT];
+     Bits = StartingIndex & (_BITCOUNT - 1);
+ 
+     /* Are we unaligned? */
+     if (Bits)
+     {
+         /* Create a mask by shifting MAXINDEX */
+         Mask = MAXINDEX << Bits;
+ 
+         /* This is what's left in the first ULONG */
+         Bits = _BITCOUNT - Bits;
+ 
+         /* Even less bits to clear? */
+         if (NumberToSet < Bits)
+         {
+             /* Calculate how many bits are left */
+             Bits -= NumberToSet;
+ 
+             /* Fixup the mask on the high side */
+             Mask = Mask << Bits >> Bits;
+ 
+             /* Set bits and return */
+             *Buffer |= Mask;
+             return;
+         }
+ 
+         /* Set bits */
+         *Buffer |= Mask;
+ 
+         /* Update buffer and left bits */
+         Buffer++;
+         NumberToSet -= Bits;
+     }
+ 
+     /* Set all full ULONGs */
+     RtlFillMemoryUlong(Buffer, NumberToSet >> 3, MAXINDEX);
+     Buffer += NumberToSet / _BITCOUNT;
+ 
+     /* Set what's left */
+     NumberToSet &= (_BITCOUNT - 1);
+     if (NumberToSet != 0)
+     {
+         Mask = MAXINDEX << NumberToSet;
+         *Buffer |= ~Mask;
+     }
+ }
+
+static BITMAP_INDEX
+NTAPI
+RtlFindClearBitsAndSet(
+    _In_ PRTL_BITMAP BitMapHeader,
+    _In_ BITMAP_INDEX NumberToFind,
+    _In_ BITMAP_INDEX HintIndex)
+{
+    BITMAP_INDEX Position;
+
+    /* Try to find clear bits */
+    Position = RtlFindClearBits(BitMapHeader, NumberToFind, HintIndex);
+
+    /* Did we get something? */
+    if (Position != MAXINDEX)
+    {
+        /* Yes, set the bits */
+        RtlSetBits(BitMapHeader, Position, NumberToFind);
+    }
+
+    /* Return what we found */
+    return Position;
+}
+
+VOID NTAPI
+RtlReleasePebLock(VOID)
+{
+   PPEB_2K Peb = NtCurrentPeb ();
+   LeaveCriticalSection(Peb->FastPebLock);
+}
+
+MAKE_FUNC_READY(FlsAlloc, Is2kOrHigher_98MENT, "KERNEL32.DLL", DWORD, PFLS_CALLBACK_FUNCTION lpCallback)
+MAKE_FUNC_BEGIN(FlsAlloc, lpCallback) {
+	DEBUG_LOG("KERNEL32 FlsAlloc: START (1)\r\n");
+	DWORD dwFlsIndex;
+	PPEB_2K Peb = NtCurrentPeb();
+	PVOID *ppFlsSlots;
+
+	RtlAcquirePebLock();
+
+	ppFlsSlots = (PVOID *)NtCurrentTeb()->FlsData;
+
+	if (!Peb->FlsCallback &&
+		!(Peb->FlsCallback = (PVOID *)RtlAllocateHeap(GetProcessHeap(), HEAP_ZERO_MEMORY,
+			FLS_MAXIMUM_AVAILABLE * sizeof(PVOID))))
+	{
+		SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+		dwFlsIndex = FLS_OUT_OF_INDEXES;
+	}
+	else
+	{
+		dwFlsIndex = RtlFindClearBitsAndSet((PRTL_BITMAP)Peb->FlsBitmap, 1, 1);
+		if (dwFlsIndex != FLS_OUT_OF_INDEXES)
+		{
+			if (!ppFlsSlots &&
+				!(ppFlsSlots = (PVOID *)RtlAllocateHeap(GetProcessHeap(), HEAP_ZERO_MEMORY,
+				(FLS_MAXIMUM_AVAILABLE + 2) * sizeof(PVOID))))
+			{
+				RtlClearBits((PRTL_BITMAP)Peb->FlsBitmap, dwFlsIndex, 1);
+				dwFlsIndex = FLS_OUT_OF_INDEXES;
+				SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+			}
+			else
+			{
+				if (!NtCurrentTeb()->FlsData)
+					NtCurrentTeb()->FlsData = ppFlsSlots;
+
+				if (lpCallback) {
+					//DPRINT1("FlsAlloc: Got lpCallback 0x%p, UNIMPLEMENTED!\n", lpCallback);
+				}
+				ppFlsSlots[dwFlsIndex + 2] = NULL; /* clear the value */
+				Peb->FlsCallback[dwFlsIndex] = lpCallback;
+			}
+		}
+		else
+		{
+			SetLastError(ERROR_NO_MORE_ITEMS);
+		}
+	}
+	RtlReleasePebLock();
+	DEBUG_LOG("KERNEL32 FlsAlloc: END\r\n");
+	return dwFlsIndex;
+}
+MAKE_FUNC_END
+
+MAKE_FUNC_READY(FlsGetValue, Is2kOrHigher_98MENT, "KERNEL32.DLL", PVOID, DWORD dwFlsIndex)
+MAKE_FUNC_BEGIN(FlsGetValue, dwFlsIndex) {
+	DEBUG_LOG("KERNEL32 FlsGetValue: START\r\n");
+	PVOID *ppFlsSlots;
+
+	ppFlsSlots = (PVOID*)NtCurrentTeb()->FlsData;
+	if (!dwFlsIndex || dwFlsIndex >= FLS_MAXIMUM_AVAILABLE || !ppFlsSlots)
+	{
+		SetLastError(ERROR_INVALID_PARAMETER);
+		DEBUG_LOG("KERNEL32 FlsGetValue: END (1)\r\n");
+		return NULL;
+	}
+
+	SetLastError(ERROR_SUCCESS);
+	DEBUG_LOG("KERNEL32 FlsGetValue: END (2)\r\n");
+	return ppFlsSlots[dwFlsIndex + 2];
+}
+MAKE_FUNC_END
+
+MAKE_FUNC_READY(FlsSetValue, Is2kOrHigher_98MENT, "KERNEL32.DLL", BOOL, DWORD dwFlsIndex, PVOID lpFlsData)
+MAKE_FUNC_BEGIN(FlsSetValue, dwFlsIndex, lpFlsData) {
+	DEBUG_LOG("KERNEL32 FlsSetValue: START\r\n");
+	PVOID *ppFlsSlots;
+	
+	if (!dwFlsIndex || dwFlsIndex >= FLS_MAXIMUM_AVAILABLE)
+	{
+	    SetLastError(ERROR_INVALID_PARAMETER);
+		DEBUG_LOG("KERNEL32 FlsSetValue: END (1)\r\n");
+	    return FALSE;
+	}
+	if (!NtCurrentTeb()->FlsData &&
+	    !(NtCurrentTeb()->FlsData = RtlAllocateHeap(GetProcessHeap(), HEAP_ZERO_MEMORY,
+	                                                (FLS_MAXIMUM_AVAILABLE + 2) * sizeof(PVOID))))
+	{
+	    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+		DEBUG_LOG("KERNEL32 FlsSetValue: END (2)\r\n");
+	    return FALSE;
+	}
+	ppFlsSlots = (PVOID*)NtCurrentTeb()->FlsData;
+	ppFlsSlots[dwFlsIndex + 2] = lpFlsData;
+	DEBUG_LOG("KERNEL32 FlsSetValue: END (3)\r\n");
+	return TRUE;
+}
+MAKE_FUNC_END
+
+static int wine_get_sortkey(int flags, const WCHAR *src, int srclen, char *dst, int dstlen) {
+    WCHAR dummy[4]; /* no decomposition is larger than 4 chars */
+    int key_len[4];
+    char *key_ptr[4];
+    const WCHAR *src_save = src;
+    int srclen_save = srclen;
+
+    key_len[0] = key_len[1] = key_len[2] = key_len[3] = 0;
+    for (; srclen; srclen--, src++)
+    {
+        unsigned int i, decomposed_len = 1;/*wine_decompose(*src, dummy, 4);*/
+        dummy[0] = *src;
+        if (decomposed_len)
+        {
+            for (i = 0; i < decomposed_len; i++)
+            {
+                WCHAR wch = dummy[i];
+                unsigned int ce;
+
+                /* tests show that win2k just ignores NORM_IGNORENONSPACE,
+                 * and skips white space and punctuation characters for
+                 * NORM_IGNORESYMBOLS.
+                 */
+                if ((flags & NORM_IGNORESYMBOLS) && (get_char_typeW(wch) & (C1_PUNCT | C1_SPACE)))
+                    continue;
+
+                if (flags & NORM_IGNORECASE) wch = tolowerW(wch);
+
+                ce = collation_table[collation_table[wch >> 8] + (wch & 0xff)];
+                if (ce != (unsigned int)-1)
+                {
+                    if (ce >> 16) key_len[0] += 2;
+                    if ((ce >> 8) & 0xff) key_len[1]++;
+                    if ((ce >> 4) & 0x0f) key_len[2]++;
+                    if (ce & 1)
+                    {
+                        if (wch >> 8) key_len[3]++;
+                        key_len[3]++;
+                    }
+                }
+                else
+                {
+                    key_len[0] += 2;
+                    if (wch >> 8) key_len[0]++;
+                    if (wch & 0xff) key_len[0]++;
+        }
+            }
+        }
+    }
+
+    if (!dstlen) /* compute length */
+        /* 4 * '\1' + 1 * '\0' + key length */
+        return key_len[0] + key_len[1] + key_len[2] + key_len[3] + 4 + 1;
+
+    if (dstlen < key_len[0] + key_len[1] + key_len[2] + key_len[3] + 4 + 1)
+        return 0; /* overflow */
+
+    src = src_save;
+    srclen = srclen_save;
+
+    key_ptr[0] = dst;
+    key_ptr[1] = key_ptr[0] + key_len[0] + 1;
+    key_ptr[2] = key_ptr[1] + key_len[1] + 1;
+    key_ptr[3] = key_ptr[2] + key_len[2] + 1;
+
+    for (; srclen; srclen--, src++)
+    {
+        unsigned int i, decomposed_len = 1;/*wine_decompose(*src, dummy, 4);*/
+        dummy[0] = *src;
+        if (decomposed_len)
+        {
+            for (i = 0; i < decomposed_len; i++)
+            {
+                WCHAR wch = dummy[i];
+                unsigned int ce;
+
+                /* tests show that win2k just ignores NORM_IGNORENONSPACE,
+                 * and skips white space and punctuation characters for
+                 * NORM_IGNORESYMBOLS.
+                 */
+                if ((flags & NORM_IGNORESYMBOLS) && (get_char_typeW(wch) & (C1_PUNCT | C1_SPACE)))
+                    continue;
+
+                if (flags & NORM_IGNORECASE) wch = tolowerW(wch);
+
+                ce = collation_table[collation_table[wch >> 8] + (wch & 0xff)];
+                if (ce != (unsigned int)-1)
+                {
+                    WCHAR key;
+                    if ((key = ce >> 16))
+                    {
+                        *key_ptr[0]++ = key >> 8;
+                        *key_ptr[0]++ = key & 0xff;
+                    }
+                    /* make key 1 start from 2 */
+                    if ((key = (ce >> 8) & 0xff)) *key_ptr[1]++ = key + 1;
+                    /* make key 2 start from 2 */
+                    if ((key = (ce >> 4) & 0x0f)) *key_ptr[2]++ = key + 1;
+                    /* key 3 is always a character code */
+                    if (ce & 1)
+                    {
+                        if (wch >> 8) *key_ptr[3]++ = wch >> 8;
+                        if (wch & 0xff) *key_ptr[3]++ = wch & 0xff;
+                    }
+                }
+                else
+                {
+                    *key_ptr[0]++ = 0xff;
+                    *key_ptr[0]++ = 0xfe;
+                    if (wch >> 8) *key_ptr[0]++ = wch >> 8;
+                    if (wch & 0xff) *key_ptr[0]++ = wch & 0xff;
+                }
+            }
+        }
+    }
+
+    *key_ptr[0] = '\1';
+    *key_ptr[1] = '\1';
+    *key_ptr[2] = '\1';
+    *key_ptr[3]++ = '\1';
+    *key_ptr[3] = 0;
+
+    return key_ptr[3] - dst;
+}
+
+MAKE_FUNC_READY(LCMapStringEx, Is2kOrHigher_98MENT, "KERNEL32.DLL", INT, LPCWSTR name, DWORD flags, LPCWSTR src, INT srclen, LPWSTR dst, INT dstlen, LPNLSVERSIONINFO version, LPVOID reserved, LPARAM lparam)
+MAKE_FUNC_BEGIN(LCMapStringEx, name, flags, src, srclen, dst, dstlen, version, reserved, lparam) {
+	DEBUG_LOG("KERNEL32 LCMapStringEx: START\r\n");
+    LPWSTR dst_ptr;
+
+    if (!src || !srclen || dstlen < 0)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+		DEBUG_LOG("KERNEL32 LCMapStringEx: END (1)\r\n");
+        return 0;
+    }
+
+    /* mutually exclusive flags */
+    if ((flags & (LCMAP_LOWERCASE | LCMAP_UPPERCASE)) == (LCMAP_LOWERCASE | LCMAP_UPPERCASE) ||
+        (flags & (LCMAP_HIRAGANA | LCMAP_KATAKANA)) == (LCMAP_HIRAGANA | LCMAP_KATAKANA) ||
+        (flags & (LCMAP_HALFWIDTH | LCMAP_FULLWIDTH)) == (LCMAP_HALFWIDTH | LCMAP_FULLWIDTH) ||
+        (flags & (LCMAP_TRADITIONAL_CHINESE | LCMAP_SIMPLIFIED_CHINESE)) == (LCMAP_TRADITIONAL_CHINESE | LCMAP_SIMPLIFIED_CHINESE))
+    {
+        SetLastError(ERROR_INVALID_FLAGS);
+		DEBUG_LOG("KERNEL32 LCMapStringEx: END (2)\r\n");
+        return 0;
+    }
+
+    if (!dstlen) dst = NULL;
+
+    if (flags & LCMAP_SORTKEY)
+    {
+        INT ret;
+        if (src == dst)
+        {
+            SetLastError(ERROR_INVALID_FLAGS);
+			DEBUG_LOG("KERNEL32 LCMapStringEx: END (3)\r\n");
+            return 0;
+        }
+
+        if (srclen < 0) srclen = strlenW(src);
+
+        ret = wine_get_sortkey(flags, src, srclen, (char *)dst, dstlen);
+        if (ret == 0)
+            SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        else
+            ret++;
+		DEBUG_LOG("KERNEL32 LCMapStringEx: END (4)\r\n");
+        return ret;
+    }
+
+    /* SORT_STRINGSORT must be used exclusively with LCMAP_SORTKEY */
+    if (flags & SORT_STRINGSORT)
+    {
+        SetLastError(ERROR_INVALID_FLAGS);
+		DEBUG_LOG("KERNEL32 LCMapStringEx: END (5)\r\n");
+        return 0;
+    }
+
+    if (srclen < 0) srclen = strlenW(src) + 1;
+
+    if (!dst) /* return required string length */
+    {
+        INT len;
+
+        for (len = 0; srclen; src++, srclen--)
+        {
+            WCHAR wch = *src;
+            /* tests show that win2k just ignores NORM_IGNORENONSPACE,
+             * and skips white space and punctuation characters for
+             * NORM_IGNORESYMBOLS.
+             */
+            if ((flags & NORM_IGNORESYMBOLS) && (get_char_typeW(wch) & (C1_PUNCT | C1_SPACE)))
+                continue;
+            len++;
+        }
+		DEBUG_LOG("KERNEL32 LCMapStringEx: END (6)\r\n");
+        return len;
+    }
+
+    if (flags & LCMAP_UPPERCASE)
+    {
+        for (dst_ptr = dst; srclen && dstlen; src++, srclen--)
+        {
+            WCHAR wch = *src;
+            if ((flags & NORM_IGNORESYMBOLS) && (get_char_typeW(wch) & (C1_PUNCT | C1_SPACE)))
+                continue;
+            *dst_ptr++ = toupperW(wch);
+            dstlen--;
+        }
+    }
+    else if (flags & LCMAP_LOWERCASE)
+    {
+        for (dst_ptr = dst; srclen && dstlen; src++, srclen--)
+        {
+            WCHAR wch = *src;
+            if ((flags & NORM_IGNORESYMBOLS) && (get_char_typeW(wch) & (C1_PUNCT | C1_SPACE)))
+                continue;
+            *dst_ptr++ = tolowerW(wch);
+            dstlen--;
+        }
+    }
+    else
+    {
+        if (src == dst)
+        {
+            SetLastError(ERROR_INVALID_FLAGS);
+			DEBUG_LOG("KERNEL32 LCMapStringEx: END (7)\r\n");
+            return 0;
+        }
+        for (dst_ptr = dst; srclen && dstlen; src++, srclen--)
+        {
+            WCHAR wch = *src;
+            if ((flags & NORM_IGNORESYMBOLS) && (get_char_typeW(wch) & (C1_PUNCT | C1_SPACE)))
+                continue;
+            *dst_ptr++ = wch;
+            dstlen--;
+        }
+    }
+
+    if (srclen)
+    {
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+		DEBUG_LOG("KERNEL32 LCMapStringEx: END (8)\r\n");
+        return 0;
+    }
+	DEBUG_LOG("KERNEL32 LCMapStringEx: END (9)\r\n");
+    return dst_ptr - dst;
+}
+MAKE_FUNC_END
+
+#if 0
+//typedef void*(WINAPI *pGetProcAddress)(HMODULE module, const char *proc_name);
+extern "C" void* WINAPI _GetProcAddress(HMODULE module, const char *proc_name) {
+	DEBUG_LOG("KERNEL32 GetProcAddress: START (");
+	DEBUG_LOG((char*)proc_name);
+	DEBUG_LOG(")\r\n");
+
+	if(((DWORD)proc_name) >> 16) {
+		if (strcmp(proc_name, "FlsGetValue") == 0) {
+			return &FlsGetValue;
+		} else if (strcmp(proc_name, "FlsSetValue") == 0) {
+			return &FlsSetValue;
+		} else if (strcmp(proc_name, "FlsAlloc") == 0) {
+			return &FlsAlloc;
+		} else if (strcmp(proc_name, "LoadLibraryExW") == 0) {
+			return &LoadLibraryExW;
+		} else if (strcmp(proc_name, "InitializeCriticalSectionEx") == 0) {
+			return &InitializeCriticalSectionEx;
+		} else if (strcmp(proc_name, "LCMapStringEx") == 0) {
+			return &LCMapStringEx;
+		} else if (strcmp(proc_name, "EnterCriticalSection") == 0) {
+			return &EnterCriticalSection;
+		}
+	}
+	
+	// Source: http://www.rohitab.com/discuss/topic/38615-getprocaddress-replacement/
+	char *modb = (char *)module;
+
+	IMAGE_DOS_HEADER *dos_header = (IMAGE_DOS_HEADER *)modb;
+	IMAGE_NT_HEADERS *nt_headers = (IMAGE_NT_HEADERS *)(modb + dos_header->e_lfanew);
+	IMAGE_OPTIONAL_HEADER *opt_header = &nt_headers->OptionalHeader;
+	IMAGE_DATA_DIRECTORY *exp_entry = (IMAGE_DATA_DIRECTORY *)
+		(&opt_header->DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT]);
+	IMAGE_EXPORT_DIRECTORY *exp_dir = (IMAGE_EXPORT_DIRECTORY *)(modb + exp_entry->VirtualAddress);
+	void **func_table = (void **)(modb + exp_dir->AddressOfFunctions);
+	WORD *ord_table = (WORD *)(modb + exp_dir->AddressOfNameOrdinals);
+	char **name_table = (char **)(modb + exp_dir->AddressOfNames);
+	void *address = NULL;
+
+	DWORD i;
+
+	/* is ordinal? */
+	if (((DWORD)proc_name >> 16) == 0) {
+		WORD ordinal = LOWORD(proc_name);
+		DWORD ord_base = exp_dir->Base;
+		/* is valid ordinal? */
+		if (ordinal < ord_base || ordinal >= ord_base + exp_dir->NumberOfFunctions) {
+			DEBUG_LOG("KERNEL32 GetProcAddress: D1\r\n");
+			return NULL;
+		}
+		/* taking ordinal base into consideration */
+		address = (void *)(modb + (DWORD)func_table[ordinal - ord_base]);
+	}
+	else {
+		DEBUG_LOG("KERNEL32 GetProcAddress: D2\r\n");
+		/* import by name */
+		for (i = 0; i < exp_dir->NumberOfNames; i++) {
+			/* name table pointers are rvas */
+			if (strcmp(proc_name, modb + (DWORD)name_table[i]) == 0)
+				address = (void *)(modb + (DWORD)func_table[ord_table[i]]);
+		}
+	}
+	/* is forwarded? */
+	if ((char *)address >= (char *)exp_dir &&
+		(char *)address < (char *)exp_dir + exp_entry->Size) {
+		DEBUG_LOG("KERNEL32 GetProcAddress: D3\r\n");
+		char *dll_name, *func_name;
+		HMODULE frwd_module;
+		dll_name = strdup((char *)address);
+		if (!dll_name)
+			return NULL;
+		address = NULL;
+		func_name = strchr(dll_name, '.');
+		*func_name++ = 0;
+
+		/* is already loaded? */
+		frwd_module = GetModuleHandleA(dll_name);
+		if (!frwd_module) {
+			DEBUG_LOG("KERNEL32 GetProcAddress: D4\r\n");
+			frwd_module = LoadLibraryA(dll_name);
+		}
+		if (frwd_module) {
+			DEBUG_LOG("KERNEL32 GetProcAddress: D5\r\n");
+			address = GetProcAddress(frwd_module, func_name);
+		}
+		free(dll_name);
+	}
+	DEBUG_LOG("KERNEL32 GetProcAddress: END\r\n");
+	return address;
+}
+#endif
 
 #endif // ADDITIONAL_COMP
 

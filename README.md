@@ -69,13 +69,13 @@ config.cfg is the configuration file that you can freely modify before creating 
 
 **COMMON SECTION**
 
-common section contains useful options for the compatibility details.
+[common] section contains useful options for the compatibility details.
 ```
  [common]
  MSBUILD_PATH={MSBuild path}
  MSBUILD_OPT={MSBuild options}
  WORKSPACE_PATH={Workspace path}
- DEBUG_LOGLVL={0|1}              Set to 1 to enable the runtime debugging
+ DEBUG_LOGLVL={0|1}              Set to 1 to enable the runtime debugging (bcpack_log.txt will be created)
  WIN2K_COMP={0|1}                Set to 1 to ensure Windows 2000 compatibility
  WIN98_COMP={0|1}                Set to 1 to ensure Windows 98 compatibility
  WIN95_COMP={0|1}                Set to 1 to ensure Windows 95 compatibility
@@ -98,12 +98,15 @@ common section contains useful options for the compatibility details.
  [additional_func] : Additional functions
 ```
 
-Above sections have the following structure:
-* Function             : Function name
-* No._of_arguments * 4 : How many arguments will be used for the function
-* Opearing system      : win95, win98, win2k, and default
-* DLL filename         : BCPACK filename corresponding to the system BCPACK
-* =(1/0)               : 1=Enabled, 0=Disabled
+Above sections include the following function structure:
+
+| Type | Example | Note |
+| -------- | ------- | ---- |
+| Function name | EncodePointer | Name of the function |
+| No. of arguments * 4 | 4 | How many arguments will be used for the function |
+| Opearing system | win2k | Either one of the following: win95, win98, or win2k |
+| DLL filename | kernel32 | BCPACK filename corresponding to the system BCPACK |
+| =(1/0) | 1 | 1=Enabled, 0=Disabled |
 
 For example, <code>EncodePointer,4,win2k,kernel32=1</code> provides a support for the EncodePointer function with a single argument with win2k compatibility in the kernel32.
 

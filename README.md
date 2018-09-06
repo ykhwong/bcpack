@@ -1,6 +1,4 @@
 # BCPack v0.1 for Visual Studio
-- Author: Taewoong Yoo
-- Website: http://ykhwong.x-y.net
 
 ## INTRODUCTION
 C/C++-based applications compiled on the latest version of Visual Studio do not support Windows 2000 or below. This BCPack will let you build applications compatible with the old operating systems. BC stands for backward compatibility.
